@@ -1,0 +1,38 @@
+
+
+Single Session:
+=====================
+
+TCP Recv and Send:
+-------------------
+.\ntttcp.exe -r -m 1,*,192.168.100.2 -na 0 -cfi -a 32 -v -sp -p 50001 -t 10 
+
+.\ntttcp.exe -s -m 1,*,192.168.100.2 -na 0 -cfi -a 32 -v -sp -p 50001 -t 10 -nic 192.168.100.1
+
+
+
+UDP Recv and Send:
+-------------------
+.\ntttcp.exe -r -m 1,*,192.168.100.2 -na 0 -cfi -u -v -sp -p 50001 -t 5 
+
+.\ntttcp.exe -s -m 1,*,192.168.100.2 -na 0 -cfi -u -v -sp -p 50001 -t 5 -nic 192.168.100.1
+
+
+Multi-session:
+---------------
+change the first value of -m with any of the following:
+1,2,4,8,16,32,64,128,256,512,999
+
+
+XML output:
+-------------
+-es -xml ntttcp.recv.out.xml
+-es -xml ntttcp.send.out.xml
+
+Samples/Sec:
+-------------
+-sam 1
+
+Latenc Measuremet (Has TPUT impact):
+------------------------------------
+-lm 

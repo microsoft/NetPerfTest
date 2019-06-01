@@ -1,0 +1,49 @@
+.\NTttcp.exe -?
+
+Version 5.33
+
+NTttcp: [-s|-r|-l|-n|-p|-sp|-ns|-to|-a|-rb|-sb|-u|-w|-d|-t|-cd|-wu|-v|-6|-wa|-nic|-xml|-ndl] -m <mappings>
+
+        -s   work as a sender
+        -r   work as a receiver
+        -l   <Length of buffer>         [default TCP: 64K, UDP: 128]
+        -n   <Number of buffers>        [default: 20K]
+        -p   <port base>                [default: 5001]
+        -sp  Synchronize data ports, if used -p must be same on every instance.
+        -ns  No sync. Senders will start sending as soon as possible.
+             By default, senders will only start after they perform a handshake
+             with receivers verifying readiness, using extra TCP connections.
+             The option is helpful for many-session tests, reducing time for
+             the test to start and increasing the max allowed connections.
+             Either all or none of the NTttcp instances must have this option.
+        -to  <timeout> in milliseconds. [default: 600000]
+             I/O and thread waits will fail if hung for this duration.
+             Set to 0 for infinite timeouts.  (NTttcp may hang indefinitely.)
+        -a   <outstanding I/O>          [default: 2]
+        -rb  <Receive buffer size>      [default: -1]
+             If and only if non-negative, SO_RCVBUF will be set to this value.
+             SO_RCVBUF of 0 will disable winsock receive buffering.
+             If negative, use OS default behavior. (e.g. dynamic buffering)
+        -sb  <Send buffer size>         [default: 0 with -a; 8K otherwise]
+             If and only if non-negative, SO_SNDBUF will be set to this value.
+             SO_SNDBUF of 0 will disable winsock send buffering.
+             If negative, use OS default behavior. (e.g. dynamic buffering)
+        -ndl set TCP_NODELAY socket option
+        -u   UDP send/recv
+        -w   WSARecv/WSASend
+        -d   Verify Flag
+        -t   <Runtime> in seconds. When with -n mans max test time and disables
+             -wu and -cd flags.         [default (with -n): 3h]
+        -cd  <Cool-down> in seconds
+        -wu  <Warm-up> in seconds
+        -v   enable verbose mode
+        -6   enable IPv6 mode
+        -wa  Sets the WAIT_ALL flag when using recv or WSARecv functions
+        -nic <NIC IP>
+             Use NIC with <NIC IP> for sending data (sender only).
+        -xml [filename] save XML output to a file, by default saves to xml.txt
+        -m   <mappings>
+             Provide one or more mapping 3-tuples separated by spaces.
+             mapping: session count, processor number, receiver address or name
+             e.g. -m 4,0,1.2.3.4 sets up:
+             4 sessions on processor 0 to test a network 

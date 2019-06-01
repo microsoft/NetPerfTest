@@ -1,0 +1,34 @@
+It is absolutely essential that variability be removed from any performance tests.  This is achieved by controlling for 
+known variables in the system and fabric as best as possible.  This is a simple best practices list to aid in config.
+========================================================================================================================
+
+Find matching pair of adapters and ports.
+ - Check the MAC address to identify the actual port number.
+ - Assume the lab wired Port0 to TOR0 and Port1 to TOR1 on all Hosts
+ - Using the same port on both physical Hosts avoids TOR0 <-> TOR1 interlink noise and ensures single hop LAT
+
+Check which NUMA node the NIC is under.
+ - "Get-NetAdapterRss <NIC_NAME> | fl *", and check for the NUMA value
+ - NumaNode                      : 0
+ - "Get-NetAdapterRss <NIC_NAME> to view NUMA mapping.
+ - "Set-NetAdapterRss <NIC_NAME> -MaxProcessorNumber 9
+   - Or similar upper bound for the number of Cores on the associated NUMA node.
+   - Note that Cross NUMA traffic is VERY noisy and can result ~50% TPUT difference.
+
+Set system in high-performance mode:
+- powercfg.exe /s 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+
+Disable any C-State beyond C1
+- powercfg -setacvalueindex scheme_current sub_processor IDLESTATEMAX 1
+- powercfg -setactive scheme_current
+
+If using VMs or Hyper-V Containers:
+- For Minimum LAT, ensure the VM or Container is on the same NUMA node.
+- For Maximum TPUT, ensure the VM or Container is on a separate NUMA node from the Phsical NIC
+- For the absolute maximum performance of both TPUT and LAT, ensure the VM/Container are on the 
+  same NODE as the Physical NIC, but only if the NUMA node has 20+ Cores.  This is a safe value 
+  for 40G perf targets.
+- To identify which NUMA node a VM is on, us:
+  - Perfmon -> Hper-V VM VID Partition -> Preferred NUMA Node Index 
+  - If not NUMA aligned, create a DUMMY VM profile nad start, then start the VM/Container to tests
+    and inspect again if it landed on the desired NUMA node.

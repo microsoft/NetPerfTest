@@ -1,0 +1,45 @@
+PS Z:\OneDrive - Microsoft\_Projects\Performance\Tools> .\latte\latte.exe -?
+
+This tool measures the average latency between T0 and T3 over a number of
+iterations of the following sequence of operations:
+  T0: client sends a message to server
+  T1: server receives the message
+  T2: server sends the message back to client
+  T3: client receives the message back
+
+Following parameters control the behavior:
+
+-ga : get args from client (server only, must be specified first)
+-sa : send args to server  (client only, must be specified first)
+-so : turns server off  (client only, must be specified first)
+-c : client (default: server)
+-a <IP address/port> : communication address
+-bl <IP address/port> : local address (client only, default: wildcard)
+-tcp | -udp | -raw : socket type (default: tcp)
+-s : use send-then-receive sequence on server (-tcp only)
+-r : use receive-then-send sequence on client (-tcp only)
+-rio : Use RIO send/receive
+-riopoll <count> : Poll <count> times before waiting on RIO CQ
+-proc <proc number> : processor number to affinitize to (default: no affinity)
+-group <group number>: processor group to affinitize to
+-mcast : use multicast (-udp and -raw only)
+-snd b | nb | ove | ovc | ovp | sel : send method (default: b - blocking)
+-rcv b | nb | ove | ovc | ovp | sel : receive method (default: b - blocking)
+-m <message size in bytes> (default: 4)
+-i <iterations> (default: 10000)
+-t <duration> : test duration (sec) (default: iterations will be used)
+                if -t and -i are both present -t overrides the -i option
+-sb <send buffer size> (default: SO_SNDBUF not set)
+-rb <receive buffer size> (default: SO_RCVBUF not set)
+-tick : Use GetTickCount() instead of performance counters
+-csv : print results in CSV format on a single line without headers
+-csvh : print results in CSV format on a single line with headers
+-csvtag <tag> : adds the specified tag string to the CSV output
+-hist : print histogram of per-iteration latency values (client only)
+-hs <start-value> : histogram 1st interval start value (default: 0 usec)
+-hl <interval-length> : length of histogram intervals (default: 100 usec)
+-hc <interval-count> : number of histogram intervals (default: 10)
+-ver : print the version and exit
+-it <timeout> : iteration timeout (msec) (default: no timeout)
+-dump <filename> : dump all values to <filename>
+-hrtt : calculate half round-trip latency
