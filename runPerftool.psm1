@@ -218,6 +218,7 @@ param(
         Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("AllowNtttcp", "$CommandsDir\Receiver\ntttcp.exe")
         Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("AllowNtttcp", "$CommandsDir\Sender\ntttcp.exe")
 
+    try {
         foreach($line in Get-Content $ntttcpCmdFile) {
 
             #change the command to add path to ntttcp tool
@@ -383,6 +384,7 @@ param(
         Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("AllowLatte", "$CommandsDir\Server\latte.exe")
         Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("AllowLatte", "$CommandsDir\Client\latte.exe")
 
+    try {
         foreach($line in Get-Content $latteCmdFile) {
             #Change the command to run the latte tool locally
             $line =  $line -ireplace [regex]::Escape("latte.exe"), "$CommandsDir\latte.exe"
