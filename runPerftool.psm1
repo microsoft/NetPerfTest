@@ -12,7 +12,7 @@ param ($RuleName, $PathToExe)
 # clean up any firewall rules that were created by the tool
 $ScriptBlockCleanupFirewallRules = {
 param ($RuleName)
-    Remove-NetFirewallRule -DisplayName "$RuleName"
+    Remove-NetFirewallRule -DisplayName "$RuleName" -ErrorAction Ignore
 }
 
 # Set up a directory on the remote machines for results gathering.
@@ -177,47 +177,47 @@ param(
         $credSplat['Credential'] = $Credential
     }
 
-    # Establish the Remote PS session with Receiver
-    $recvPSSession = New-PSSession -ComputerName $RecvComputerName @credSplat
-
-    if($recvPSsession -eq $null) {
-        Write-Host "Error connecting to Host: $($RecvComputerName)"
-        return
-    }
-
-    # Establish the Remote PS session with Sender
-    $sendPSSession = New-PSSession -ComputerName $SendComputerName @credSplat
-
-    if($sendPSsession -eq $null) {
-        Write-Host "Error connecting to Host: $($SendComputerName)"
-        return
-    }
-
-    # Construct the input file to read for commands.
-    $ntttcpCmdFile = Join-Path -Path $CommandsDir -ChildPath "\ntttcp\NTTTCP.Commands.txt"
-
-    # Ensure that remote machines have the directory created for results gathering. 
-    $recvFolderExists = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir)
-    $sendFolderExists = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir)
-
-    # Clean up the Receiver/Sender folders on remote machines, if they exist so that we dont capture any stale logs
-    Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Receiver"
-    Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Sender"
-
-    Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ntttcp\tcp")
-    Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ntttcp\tcp")
-    Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ntttcp\udp")
-    Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ntttcp\udp")
-
-    #copy ntttcp to the remote machines
-    Copy-Item -Path "$toolpath\ntttcp.exe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
-    Copy-Item -Path "$toolpath\ntttcp.exe" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
-
-    # Setup firewall rules so that traffic can go through
-    Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("AllowNtttcp", "$CommandsDir\Receiver\ntttcp.exe")
-    Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("AllowNtttcp", "$CommandsDir\Sender\ntttcp.exe")
-
     try {
+        # Establish the Remote PS session with Receiver
+        $recvPSSession = New-PSSession -ComputerName $RecvComputerName @credSplat
+
+        if($recvPSsession -eq $null) {
+            Write-Host "Error connecting to Host: $($RecvComputerName)"
+            return
+        }
+
+        # Establish the Remote PS session with Sender
+        $sendPSSession = New-PSSession -ComputerName $SendComputerName @credSplat
+
+        if($sendPSsession -eq $null) {
+            Write-Host "Error connecting to Host: $($SendComputerName)"
+            return
+        }
+
+        # Construct the input file to read for commands.
+        $ntttcpCmdFile = Join-Path -Path $CommandsDir -ChildPath "\ntttcp\NTTTCP.Commands.txt"
+
+        # Ensure that remote machines have the directory created for results gathering. 
+        $recvFolderExists = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir)
+        $sendFolderExists = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir)
+
+        # Clean up the Receiver/Sender folders on remote machines, if they exist so that we dont capture any stale logs
+        Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Receiver"
+        Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Sender"
+
+        Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ntttcp\tcp")
+        Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ntttcp\tcp")
+        Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ntttcp\udp")
+        Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ntttcp\udp")
+
+        #copy ntttcp to the remote machines
+        Copy-Item -Path "$toolpath\ntttcp.exe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
+        Copy-Item -Path "$toolpath\ntttcp.exe" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
+
+        # Setup firewall rules so that traffic can go through
+        Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("AllowNtttcp", "$CommandsDir\Receiver\ntttcp.exe")
+        Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("AllowNtttcp", "$CommandsDir\Sender\ntttcp.exe")
+
         foreach($line in Get-Content $ntttcpCmdFile) {
 
             #change the command to add path to ntttcp tool
@@ -343,45 +343,46 @@ param(
         $credSplat['Credential'] = $Credential
     }
 
-    # Establish the Remote PS session with Receiver
-    $recvPSSession = New-PSSession -ComputerName $RecvComputerName @credSplat
-
-    if($recvPSsession -eq $null) {
-        Write-Host "Error connecting to Host: $($RecvComputerName)"
-        return
-    }
-
-    # Establish the Remote PS session with Sender
-    $sendPSSession = New-PSSession -ComputerName $SendComputerName @credSplat
-
-    if($sendPSsession -eq $null) {
-        Write-Host "Error connecting to Host: $($SendComputerName)"
-        return
-    }
-
-    # Construct the input file to read for commands.
-    $latteCmdFile = Join-Path -Path $CommandsDir -ChildPath "\latte\LATTE.Commands.txt"
-
-    # Ensure that remote machines have the directory created for results gathering. 
-    $recvFolderExists = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir)
-    $sendFolderExists = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir)
-
-    # Clean up the Client/Server folders on remote machines, if they exist so that we dont capture any stale logs
-    Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Server"
-    Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Client"
-
-    Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Server\latte")
-    Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Client\latte")
-
-    #copy latte.exe to the remote machines 
-    Copy-Item -Path "$toolpath\latte.exe" -Destination "$CommandsDir\Server" -ToSession $recvPSSession
-    Copy-Item -Path "$toolpath\latte.exe" -Destination "$CommandsDir\Client" -ToSession $sendPSSession
-
-    # Setup firewall rules so that traffic can go through
-    Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("AllowLatte", "$CommandsDir\Server\latte.exe")
-    Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("AllowLatte", "$CommandsDir\Client\latte.exe")
-
     try {
+
+        # Establish the Remote PS session with Receiver
+        $recvPSSession = New-PSSession -ComputerName $RecvComputerName @credSplat
+
+        if($recvPSsession -eq $null) {
+            Write-Host "Error connecting to Host: $($RecvComputerName)"
+            return
+        }
+
+        # Establish the Remote PS session with Sender
+        $sendPSSession = New-PSSession -ComputerName $SendComputerName @credSplat
+
+        if($sendPSsession -eq $null) {
+            Write-Host "Error connecting to Host: $($SendComputerName)"
+            return
+        }
+
+        # Construct the input file to read for commands.
+        $latteCmdFile = Join-Path -Path $CommandsDir -ChildPath "\latte\LATTE.Commands.txt"
+
+        # Ensure that remote machines have the directory created for results gathering. 
+        $recvFolderExists = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir)
+        $sendFolderExists = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir)
+
+        # Clean up the Client/Server folders on remote machines, if they exist so that we dont capture any stale logs
+        Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Server"
+        Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Client"
+
+        Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Server\latte")
+        Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Client\latte")
+
+        #copy latte.exe to the remote machines 
+        Copy-Item -Path "$toolpath\latte.exe" -Destination "$CommandsDir\Server" -ToSession $recvPSSession
+        Copy-Item -Path "$toolpath\latte.exe" -Destination "$CommandsDir\Client" -ToSession $sendPSSession
+
+        # Setup firewall rules so that traffic can go through
+        Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("AllowLatte", "$CommandsDir\Server\latte.exe")
+        Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("AllowLatte", "$CommandsDir\Client\latte.exe")
+
         foreach($line in Get-Content $latteCmdFile) {
             #Change the command to run the latte tool locally
             $line =  $line -ireplace [regex]::Escape("latte.exe"), "$CommandsDir\latte.exe"
