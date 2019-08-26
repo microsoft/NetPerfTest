@@ -35,7 +35,7 @@ function test_recv {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ntttcp.exe -r -m $Conn,*,$g_DestIp $proto -v -w -wu $g_ptime -cd $g_ptime -sp -p 50001 -t $g_runtime -xml $out.xml"
+    [string] $cmd = "ntttcp.exe -r -m $Conn,*,$g_DestIp $proto -v -wu $g_ptime -cd $g_ptime -sp -p 50001 -t $g_runtime -xml $out.xml"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Host   $cmd 
@@ -51,7 +51,7 @@ function test_send {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ntttcp.exe -s -m $Conn,*,$g_DestIp $proto -v -w -wu $g_ptime -cd $g_ptime -sp -p 50001 -t $g_runtime -xml $out.out -nic $g_SrcIp"
+    [string] $cmd = "ntttcp.exe -s -m $Conn,*,$g_DestIp $proto -v -wu $g_ptime -cd $g_ptime -sp -p 50001 -t $g_runtime -xml $out.xml -nic $g_SrcIp"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Host   $cmd 
@@ -85,7 +85,7 @@ function test_tcp {
     }
 
     foreach ($Oio in $OutIoList) {
-        [string] $tcpstr = "-a $Oio"
+        [string] $tcpstr = "-a $Oio -w"
         test_recv -Conn $Conn -Proto $tcpstr -OutDir $OutDir -Fname "tcp.recv.m$Conn.a$Oio"
         test_send -Conn $Conn -Proto $tcpstr -OutDir $OutDir -Fname "tcp.send.m$Conn.a$Oio"
         Write-Host " "
