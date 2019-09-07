@@ -103,6 +103,14 @@ $CreateZipScriptBlock = {
 .PARAMETER SrcIp
     The IpAddr of the source machine that's going to be sending data for the duration of the throughput tests
 
+.PARAMETER SrcSuppressCredPrompt
+    Optional parameter. If set to true, then we use the current logged on user's credentials to connect to SrcIp Machine, otherwise we prompt user for creds.
+    default behavior is to prompt
+
+.PARAMETER DestSuppressCredPrompt
+    Optional parameter. If set to true, then we use the current logged on user's credentials to connect to DestIp Machine, otherwise we prompt user for creds.
+    default behavior is to prompt
+
 .PARAMETER CommandsDir
     The location of the folder that's going to have the auto generated commands needing to be run.
 
@@ -117,22 +125,38 @@ Function ProcessCommands{
     param(
     [Parameter(Mandatory=$True)]  [string]$DestIp,
     [Parameter(Mandatory=$True)] [string]$SrcIp,
-    [Parameter(Mandatory=$True)]  [string]$CommandsDir
+    [Parameter(Mandatory=$True)]  [string]$CommandsDir,
+    [Parameter(Mandatory=$False)] [string]$SrcSuppressCredPrompt = $False, 
+    [Parameter(Mandatory=$False)] [string]$DestSuppressCredPrompt = $False
     )
 
     $recvIpAddr = $DestIp
     $sendIpAddr = $SrcIp
 
+    [PSCredential] $sendIPCreds = [System.Management.Automation.PSCredential]::Empty
+    [PSCredential] $recvIPCreds = [System.Management.Automation.PSCredential]::Empty
+
     # get the hostnames from IPAddrs:
     $recvComputerName = [System.Net.Dns]::GetHostByAddress($recvIpAddr).Hostname
     $sendComputerName = [System.Net.Dns]::GetHostByAddress($sendIpAddr).Hostname
 
+
+    if ($SrcSuppressCredPrompt -eq $False) { 
+        Write-Host "Fetching credentials for source machine..."
+        $sendIPCreds = Get-Credential
+    }
+
+    if ($DestSuppressCredPrompt -eq $False) { 
+        Write-Host "Fetching credentials for destination machine..."
+        $recvIPCreds = Get-Credential
+    }
+
     # process ntttcp commands 
     Write-Host "Processing ntttcp commands"
-    ProcessNtttcpCommands -RecvComputerName $recvComputerName -SendComputerName $sendComputerName -CommandsDir $CommandsDir
+    ProcessNtttcpCommands -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $CommandsDir
 
     Write-Host "Processing latte commands"
-    ProcessLatteCommands -RecvComputerName $recvComputerName -SendComputerName $sendComputerName -CommandsDir $CommandsDir
+    ProcessLatteCommands -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $CommandsDir
 
 } # ProcessCommands()
 
@@ -158,8 +182,11 @@ Function ProcessCommands{
     Default value: $False. The function creates folders and subfolders on remote machines to house the result files of the individual commands. bCleanup param decides 
     if the folders should be left as is, or if they should be cleaned up
 
-.PARAMETER Credential
-    Optional PSCredentials if needed to connect to the remote machines
+.PARAMETER SendComputerCreds
+    Optional PSCredentials to connect to the Sender machine
+
+.PARAMETER RecvComputerCreds
+    Optional PSCredentials to connect to the Receiver machine
 #>
 Function ProcessNtttcpCommands{
 param(
@@ -167,19 +194,25 @@ param(
     [Parameter(Mandatory=$True)] [string]$SendComputerName,
     [Parameter(Mandatory=$True)] [string]$CommandsDir,
     [Parameter(Mandatory=$False)] [string]$Bcleanup = $False, 
-    [Parameter(Mandatory=$False)] [PSCredential] $Credential = [System.Management.Automation.PSCredential]::Empty
+    [Parameter(Mandatory=$False)] [PSCredential] $SendComputerCreds = [System.Management.Automation.PSCredential]::Empty,
+    [Parameter(Mandatory=$False)] [PSCredential] $RecvComputerCreds = [System.Management.Automation.PSCredential]::Empty
     )
 
     $toolpath = ".\ntttcp"
 
-    $credSplat = @{}
-    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
-        $credSplat['Credential'] = $Credential
+    $recvCredSplat = @{}
+    if ($RecvComputerCreds -ne [System.Management.Automation.PSCredential]::Empty) {
+        $recvCredSplat['Credential'] = $RecvComputerCreds
+    }
+
+    $sendCredSplat = @{}
+    if ($SendComputerCreds -ne [System.Management.Automation.PSCredential]::Empty) {
+        $sendCredSplat['Credential'] = $SendComputerCreds
     }
 
     try {
         # Establish the Remote PS session with Receiver
-        $recvPSSession = New-PSSession -ComputerName $RecvComputerName @credSplat
+        $recvPSSession = New-PSSession -ComputerName $RecvComputerName @recvCredSplat
 
         if($recvPSsession -eq $null) {
             Write-Host "Error connecting to Host: $($RecvComputerName)"
@@ -187,7 +220,7 @@ param(
         }
 
         # Establish the Remote PS session with Sender
-        $sendPSSession = New-PSSession -ComputerName $SendComputerName @credSplat
+        $sendPSSession = New-PSSession -ComputerName $SendComputerName @sendCredSplat
 
         if($sendPSsession -eq $null) {
             Write-Host "Error connecting to Host: $($SendComputerName)"
@@ -324,8 +357,11 @@ param(
     Default value: $False. The function creates folders and subfolders on remote machines to house the result files of the individual commands. bCleanup param decides 
     if the folders should be left as is, or if they should be cleaned up
 
-.PARAMETER Credential
-    Optional PSCredentials if needed to connect to the remote machines
+.PARAMETER SendComputerCreds
+    Optional PSCredentials to connect to the Sender machine 
+
+.PARAMETER RecvComputerCreds
+    Optional PSCredentials to connect to the Receiver machine 
 #>
 Function ProcessLatteCommands{
 param(
@@ -333,20 +369,26 @@ param(
     [Parameter(Mandatory=$True)] [string]$SendComputerName,
     [Parameter(Mandatory=$True)] [string]$CommandsDir,
     [Parameter(Mandatory=$False)] [string]$Bcleanup = $False,
-    [Parameter(Mandatory=$False)] [PSCredential] $Credential = [System.Management.Automation.PSCredential]::Empty
+    [Parameter(Mandatory=$False)] [PSCredential] $SendComputerCreds = [System.Management.Automation.PSCredential]::Empty,
+    [Parameter(Mandatory=$False)] [PSCredential] $RecvComputerCreds = [System.Management.Automation.PSCredential]::Empty
     )
 
     $toolpath = ".\latte"
 
-    $credSplat = @{}
-    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
-        $credSplat['Credential'] = $Credential
+    $recvCredSplat = @{}
+    if ($RecvComputerCreds -ne [System.Management.Automation.PSCredential]::Empty) {
+        $recvCredSplat['Credential'] = $RecvComputerCreds
+    }
+
+    $sendCredSplat = @{}
+    if ($SendComputerCreds -ne [System.Management.Automation.PSCredential]::Empty) {
+        $sendCredSplat['Credential'] = $SendComputerCreds
     }
 
     try {
 
         # Establish the Remote PS session with Receiver
-        $recvPSSession = New-PSSession -ComputerName $RecvComputerName @credSplat
+        $recvPSSession = New-PSSession -ComputerName $RecvComputerName @recvCredSplat
 
         if($recvPSsession -eq $null) {
             Write-Host "Error connecting to Host: $($RecvComputerName)"
@@ -354,7 +396,7 @@ param(
         }
 
         # Establish the Remote PS session with Sender
-        $sendPSSession = New-PSSession -ComputerName $SendComputerName @credSplat
+        $sendPSSession = New-PSSession -ComputerName $SendComputerName @sendCredSplat
 
         if($sendPSsession -eq $null) {
             Write-Host "Error connecting to Host: $($SendComputerName)"
