@@ -38,6 +38,7 @@ function test_recv {
     [string] $cmd = "ntttcp.exe -r -m $Conn,*,$g_DestIp $proto -v -wu $g_ptime -cd $g_ptime -sp -p 50001 -t $g_runtime -xml $out.xml"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
+    Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
     Write-Host   $cmd 
 } # test_recv()
 
@@ -54,6 +55,7 @@ function test_send {
     [string] $cmd = "ntttcp.exe -s -m $Conn,*,$g_DestIp $proto -v -wu $g_ptime -cd $g_ptime -sp -p 50001 -t $g_runtime -xml $out.xml -nic $g_SrcIp"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
+    Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend    
     Write-Host   $cmd 
 } # test_send()
 
@@ -78,10 +80,11 @@ function test_tcp {
 
     # NTTTCP outstanding IO ^2 scaling. Min -> Default (2) -> MAX supported.
     # - Finds optimial outstanding IO scaling value per BW
-    [int]   $OutIoMax = 63
-    [int[]] $OutIoList = @(2, $OutIoMax)
+    [int]   $OutIoDflt = 2
+    [int]   $OutIoMax  = 63    
+    [int[]] $OutIoList = @($OutIoDflt, 16)
     if ($g_detail) {
-        $OutIoList  = @(1, 2, 4, 16, 32, $OutIoMax)
+        $OutIoList  = @(1, 2, 4, 8, 16, 32, $OutIoMax)
     }
 
     foreach ($Oio in $OutIoList) {
@@ -151,11 +154,13 @@ function test_main {
     )
     input_display
 
-    [bool]   $g_detail = $Detail
-    [string] $g_DestIp = $DestIp
-    [string] $g_SrcIp  = $SrcIp
-    [string] $dir      = (Join-Path -Path $OutDir -ChildPath "ntttcp") 
-    [string] $g_log    = "$dir\NTTTCP.Commands.txt"
+    [bool]   $g_detail  = $Detail
+    [string] $g_DestIp  = $DestIp
+    [string] $g_SrcIp   = $SrcIp
+    [string] $dir       = (Join-Path -Path $OutDir -ChildPath "ntttcp") 
+    [string] $g_log     = "$dir\NTTTCP.Commands.txt"
+    [string] $g_logSend = "$dir\NTTTCP.Commands.Send.txt"
+    [string] $g_logRecv = "$dir\NTTTCP.Commands.Recv.txt"
 
     # Edit spaces in path for Invoke-Expression compatibility
     $dir = $dir -replace ' ','` '

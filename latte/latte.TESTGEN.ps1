@@ -25,8 +25,21 @@ function input_display {
 #===============================================
 # Internal Functions
 #===============================================
+function banner {
+    [CmdletBinding()]
+    Param(
+        [parameter(Mandatory=$true)] [String] $Msg
+    )
+
+    Write-Host "==========================================================================="
+    Write-Host "| $Msg"
+    Write-Host "==========================================================================="
+} # banner()
+
 function test_recv {
-    .\latte.exe -ga # commands received from remote
+    [string] $cmd = "latte.exe -ga"
+    Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
+    Write-Host   $cmd 
 } # test_recv()
 
 function test_send {
@@ -48,7 +61,8 @@ function test_send {
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
     [string] $cmd = "latte.exe -sa -c -a $g_DestIp" + ":"  + "$sport $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -dump $out.data.txt > $out.txt"
-    Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
+    Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
+    Write-Host   $cmd 
 } # test_send()
 
 function test_latte_generate {
@@ -60,11 +74,19 @@ function test_latte_generate {
     # Normalize output directory
     $dir = $OutDir
 
-    # Send types
-    [string []] $snds = @('b', 'nb', 'ove', 'ovc', 'ovp', 'sel')
+    # Send types - Default is 'b' per LATTE docs.
+    [string]    $sndsDflt = 'b'
+    [string []] $snds     = @($sndsDflt)
+    if ($g_detail) {
+        $snds = @($sndsDflt, 'nb', 'ove', 'ovc', 'ovp', 'sel')
+    }
 
     # Transports
-    [string []] $soctypes = @('raw', 'tcp', 'udp')
+    [string []] $soctypes = @('tcp', 'udp')
+    if ($g_detail) {
+        $soctypes = @('raw', 'tcp', 'udp')
+    }
+
     foreach ($soc in $soctypes) {
         # Iteration Tests
         # - Measures over input samples
@@ -73,12 +95,18 @@ function test_latte_generate {
             $iters = @(10000, 1000000) 
         }    
 
+        banner -Msg "Iteration Tests: [$soc] operations per bounded iterations"
         foreach ($iter in $iters) {
             foreach ($snd in $snds) {
                 # Default
                 test_send -Iter "-i $iter" -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.i$iter.$snd"
+                test_recv
+                Write-Host " "
+
                 #optimized
                 test_send -Iter "-i $iter" -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.i$iter.$snd.OPT"
+                test_recv
+                Write-Host " "
             }
         }
 
@@ -89,47 +117,22 @@ function test_latte_generate {
             $secs = @(10, 60) 
         }   
 
+        banner -Msg "Time Tests: [$soc] operations per bounded time"
         foreach ($sec in $secs) {
             foreach ($snd in $snds) {
                 # Default
                 test_send -Iter "-t $sec" -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.t$sec.$snd"
+                test_recv
+                Write-Host " "
+
                 # Optimized
                 test_send -Iter "-t $sec" -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.t$sec.$snd.OPT"
+                test_recv
+                Write-Host " "
             }
         }
     }
 } # test_latte_generate()
-
-<#
-function test_execute {
-    Param(
-        [parameter(Mandatory=$true)]  [string] $Cmd,
-        [parameter(Mandatory=$true)]  [string] $OutFile        
-    )
-        
-    Write-Output "$env:USERNAME @ ${env:COMPUTERNAME}:"  | Out-File -Encoding ascii -Append $OutFile
-    Write-Output "$(prompt)$cmd" | Out-File -Encoding ascii -Append $OutFile      
-    Write-Host   "$cmd"
-    # Redirect all output streams to file
-    &{
-        Write-Output $(Invoke-Expression $cmd) 
-    } *>&1 | Out-File -Encoding ascii -Append $OutFile
-    Write-Output "`n`n" | Out-File -Encoding ascii -Append $OutFile
-} # test_execute()
-#>
-
-function test_run {
-    Param(
-        [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
-    )
-
-    [string] $execLog = "$OutDir\LATTE.Execution.Log.txt" 
-
-    foreach ($line in Get-Content $g_log) {
-        Write-Host $line
-        #test_execute -Cmd $line -OutFile $execLog
-    }
-} # test_run()
 
 #===============================================
 # External Functions - Main Program
@@ -143,11 +146,12 @@ function test_main {
     )
     input_display
     
-    [bool]   $g_detail = $Detail
-    [string] $g_DestIp = $DestIp
-    [string] $g_SrcIp  = $SrcIp
-    [string] $dir      = (Join-Path -Path $OutDir -ChildPath "latte") 
-    [string] $g_log    = "$dir\LATTE.COMMANDS.txt"
+    [bool]   $g_detail  = $Detail
+    [string] $g_DestIp  = $DestIp
+    [string] $g_SrcIp   = $SrcIp
+    [string] $dir       = (Join-Path -Path $OutDir -ChildPath "latte") 
+    [string] $g_logSend = "$dir\LATTE.Commands.Send.txt"
+    [string] $g_logRecv = "$dir\LATTE.Commands.Recv.txt" 
 
     New-Item -ItemType directory -Path $dir | Out-Null
     
@@ -155,5 +159,4 @@ function test_main {
     # $dir  = $dir  -replace ' ','` '
 
     test_latte_generate -OutDir $dir
-    test_run            -OutDir $dir
 } test_main @PSBoundParameters # Entry Point
