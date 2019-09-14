@@ -114,7 +114,7 @@ $CreateZipScriptBlock = {
 .PARAMETER CommandsDir
     The location of the folder that's going to have the auto generated commands needing to be run.
 
-.NOTES
+.DESCRIPTION
     This function is dependent on the output of PERFTEST.PS1 function
     for example, PERFTEST.PS1 is invoked with DestIp, SrcIp and OutDir.
     to invoke the commands that were generated above, we pass the same parameters to ProcessCommands function
