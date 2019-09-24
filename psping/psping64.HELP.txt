@@ -1,0 +1,115 @@
+//=================================================================================================================================
+PS Z:\OneDrive\Code\GitHub\NetPerfTest\psping> .\psping64.exe -?
+
+PsPing v2.10 - PsPing - ping, latency, bandwidth measurement utility
+Copyright (C) 2012-2016 Mark Russinovich
+Sysinternals - www.sysinternals.com
+
+PsPing implements Ping functionality, TCP ping, UDP/TCP latency, and UDP / TCP
+bandwidth measurement.
+
+Help usage: psping -? [i|t|l|b]
+   -? i   Usage for ICMP ping.
+   -? t   Usage for TCP ping.
+   -? l   Usage for latency test.
+   -? b   Usage for bandwidth test.
+  -nobanner   Do not display the startup banner and copyright message.
+
+
+//=================================================================================================================================
+PS Z:\OneDrive\Code\GitHub\NetPerfTest\psping> .\psping64.exe -? i -nobanner
+
+ICMP ping usage: psping [-t|-n count[s]] [-i interval] [-w count] [-q] [-h [buckets|val1,val2,...]] [-l requestsize[k]] [-6|-4] destination
+  -t    Ping until stopped with Ctrl+C and type Ctrl+Break
+        for statistics.
+  -n    Number of pings or append 's' to specify seconds e.g. '10s'.
+  -i    Interval in seconds. Specify 0 for fast ping.
+  -w    Warmup with the specified number of iterations (default is 1).
+  -q    Don't output during pings.
+  -h    Print histogram (default bucket count is 20).
+        If you specify a single argument, it's interpreted as a bucket
+        count and the histogram will contain that number of
+        buckets covering the entire time range of values.
+        Specify a comma-separated list of times to create a custom
+        histogram (e.g. "0.01,0.05,1,5,10").
+  -l    Request size. Append 'k' for kilobytes.
+  -4    Force using IPv4.
+  -6    Force using IPv6.
+
+For high-speed ping tests use -q and -i 0.
+
+
+//=================================================================================================================================
+PS Z:\OneDrive\Code\GitHub\NetPerfTest\psping> .\psping64.exe -? t -nobanner
+
+TCP ping usage: psping [-t|-n count[s]] [-i interval] [-w count] [-q] [-h [buckets|val1,val2,...]] [-6|-4] destination:port
+  -t    Ping until stopped with Ctrl+C and type Ctrl+Break
+        for statistics.
+  -n    Number of pings or append 's' to specify seconds e.g. '10s'.
+  -i    Interval in seconds. Specify 0 for fast ping.
+  -w    Warmup with the specified number of iterations (default is 1).
+  -q    Don't output during pings.
+  -h    Print histogram (default bucket count is 20).
+        If you specify a single argument, it's interpreted as a bucket
+        count and the histogram will contain that number of
+        buckets covering the entire time range of values.
+        Specify a comma-separated list of times to create a custom
+        histogram (e.g. "0.01,0.05,1,5,10").
+  -4    Force using IPv4.
+  -6    Force using IPv6.
+
+For high-speed ping tests use -q and -i 0.
+
+
+//=================================================================================================================================
+PS Z:\OneDrive\Code\GitHub\NetPerfTest\psping> .\psping64.exe -? l -nobanner
+
+TCP and UDP latency usage:
+server: psping [-6|-4] [-f] -s address:port
+client: psping -l requestsize[k|m] -n count[s] [-r] [-u] [-w count] [-f] [-h [buckets|val1,val2,...]] [-6|-4] destination:port
+  -l    Request size. Append 'k' for kilobytes and 'm' for megabytes.
+  -n    Number of sends/receives. Append 's' to specify seconds e.g. '10s'.
+  -r    Receive from the server instead of sending.
+  -u    UDP (default is TCP).
+  -w    Warmup with the specified number of iterations (default is 5).
+  -f    Open source firewall port during the run.
+  -h    Print histogram (default bucket count is 20).
+        If you specify a single argument, it's interpreted as a bucket
+        count and the histogram will contain that number of
+        buckets covering the entire time range of values.
+        Specify a comma-separated list of times to create a custom
+        histogram (e.g. "0.01,0.05,1,5,10").
+  -4    Force using IPv4.
+  -6    Force using IPv6.
+  -s    Server listening address and port.
+
+The server can serve both latency and bandwidth tests and remains active until
+you terminate it with Control-C.
+
+
+//=================================================================================================================================
+PS Z:\OneDrive\Code\GitHub\NetPerfTest\psping> .\psping64.exe -? b -nobanner
+
+TCP and UDP bandwidth usage:
+server: psping [-6|-4] [-f] -s address:port
+client: psping -b -l requestsize[k|m] -n count[s] [-r] [-u [target]] [-i outstanding] [-w count] [-f] [-h [buckets|val1,val2,...]] [-6|-4] destination:port
+  -b    Bandwidth test.
+  -l    Request size. Append 'k' for kilobytes and 'm' for megabytes.
+  -n    Number of sends/receives. Append 's' to specify seconds e.g. '10s'.
+  -r    Receive from the server instead of sending.
+  -u    UDP (default is TCP). Specify target bandwidth in MB/s.
+  -i    Number of outstanding I/Os (default is min of 16 and 2x CPU cores).
+  -w    Warmup for the specified iterations (default is 2x CPU cores).
+  -f    Open source firewall port during the run.
+  -h    Print histogram (default bucket count is 20).
+        If you specify a single argument, it's interpreted as a bucket
+        count and the histogram will contain that number of
+        buckets covering the entire time range of values.
+        Specify a comma-separated list of times to create a custom
+        histogram (e.g. "0.01,0.05,1,5,10").
+  -4    Force using IPv4.
+  -6    Force using IPv6.
+  -s    Server listening address and port.
+
+The server can serve both latency and bandwidth tests and remains active until
+you terminate it with Control-C.
