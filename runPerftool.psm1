@@ -126,30 +126,22 @@ Function ProcessCommands{
     [Parameter(Mandatory=$True)]  [string]$DestIp,
     [Parameter(Mandatory=$True)] [string]$SrcIp,
     [Parameter(Mandatory=$True)]  [string]$CommandsDir,
-    [Parameter(Mandatory=$False)] [string]$SrcSuppressCredPrompt = $False, 
-    [Parameter(Mandatory=$False)] [string]$DestSuppressCredPrompt = $False
+    [Parameter(Mandatory=$True, Position=0, HelpMessage="Dest Machine Username?")]
+    [string] $DestIpUserName,
+    [Parameter(Mandatory=$true, Position=0, HelpMessage="Dest Machine Password?")]
+    [SecureString]$DestIpPassword,
+    [Parameter(Mandatory=$True, Position=0, HelpMessage="Src Machine Username?")]
+    [string] $SrcIpUserName,
+    [Parameter(Mandatory=$true, Position=0, HelpMessage="Src Machine Password?")]
+    [SecureString]$SrcIpPassword
     )
 
-    $recvIpAddr = $DestIp
-    $sendIpAddr = $SrcIp
+    $recvComputerName = $DestIp
+    $sendComputerName = $SrcIp
 
-    [PSCredential] $sendIPCreds = [System.Management.Automation.PSCredential]::Empty
-    [PSCredential] $recvIPCreds = [System.Management.Automation.PSCredential]::Empty
+    [PSCredential] $sendIPCreds = New-Object System.Management.Automation.PSCredential($SrcIpUserName, $SrcIpPassword)
 
-    # get the hostnames from IPAddrs:
-    $recvComputerName = [System.Net.Dns]::GetHostByAddress($recvIpAddr).Hostname
-    $sendComputerName = [System.Net.Dns]::GetHostByAddress($sendIpAddr).Hostname
-
-
-    if ($SrcSuppressCredPrompt -eq $False) { 
-        Write-Host "Fetching credentials for source machine..."
-        $sendIPCreds = Get-Credential
-    }
-
-    if ($DestSuppressCredPrompt -eq $False) { 
-        Write-Host "Fetching credentials for destination machine..."
-        $recvIPCreds = Get-Credential
-    }
+    [PSCredential] $recvIPCreds = New-Object System.Management.Automation.PSCredential($DestIpUserName, $DestIpPassword)
 
     # process ntttcp commands 
     Write-Host "Processing ntttcp commands"
