@@ -60,7 +60,7 @@ function test_send {
     [int] $rangemax = 98
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "latte.exe -sa -c -a $g_DestIp" + ":"  + "$sport $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -dump $out.data.txt > $out.txt"
+    [string] $cmd = "latte.exe -sa -c -a $g_DestIp" + ":"  + "$sport $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -so -dump $out.data.txt > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Host   $cmd 
 } # test_send()
