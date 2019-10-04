@@ -147,8 +147,8 @@ function test_main {
     input_display
     
     [bool]   $g_detail  = $Detail
-    [string] $g_DestIp  = $DestIp
-    [string] $g_SrcIp   = $SrcIp
+    [string] $g_DestIp  = $DestIp.Trim()
+    [string] $g_SrcIp   = $SrcIp.Trim()
     [string] $dir       = (Join-Path -Path $OutDir -ChildPath "latte") 
     [string] $g_logSend = "$dir\LATTE.Commands.Send.txt"
     [string] $g_logRecv = "$dir\LATTE.Commands.Recv.txt" 
