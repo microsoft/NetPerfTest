@@ -10,6 +10,12 @@ param(
     [PSCredential] $Credential,
 
     [Parameter(Mandatory=$false)]
+    [Int] $TCPPort = 5554,
+
+    [Parameter(Mandatory=$false)]
+    [Int] $UDPPort = 5555,
+
+    [Parameter(Mandatory=$false)]
     [ValidateRange(1000, [Int]::MaxValue)]
     [Int] $BlackoutThreshold = 1000, # ms
 
@@ -29,7 +35,7 @@ $pingCmd = {
 }
 
 $ctsTrafficCmd = {
-    param($BinDir, $Target, $Protocol, $Role)
+    param($BinDir, $Target, $Port, $Protocol, $Role)
 
     $bufferSize = 64 # bytes
     $rateLimitPeriod = 1 # ms
@@ -38,9 +44,9 @@ $ctsTrafficCmd = {
     $rateLimit = $bufferSize * (1000 / $rateLimitPeriod)
 
     if ($Protocol -eq "UDP") {
-        $commonArgs = @("-Protocol:UDP", "-Port:5555", "-BitsPerSecond:320000", "-FrameRate:1000", "-BufferDepth:1", "-StreamLength:100000")
+        $commonArgs = @("-Protocol:UDP", "-Port:$Port", "-BitsPerSecond:320000", "-FrameRate:1000", "-BufferDepth:1", "-StreamLength:100000")
     } else {
-        $commonArgs = @("-Pattern:duplex", "-Buffer:$BufferSize", "-RateLimit:$rateLimit", "-RateLimitPeriod:$rateLimitPeriod")
+        $commonArgs = @("-Protocol:TCP", "-Port:$Port", "-Pattern:duplex", "-Buffer:$BufferSize", "-RateLimit:$rateLimit", "-RateLimitPeriod:$rateLimitPeriod")
     }
 
     if ($Role -eq "Server") {
@@ -50,11 +56,6 @@ $ctsTrafficCmd = {
     }
 }
 
-[Int64] $lastPingTickCount = (Get-Date).Ticks
-[Double] $lastTCPSend = 0
-[Double] $lastTCPRecv = 0
-[Double] $lastUDP = 0
-[Int] $udpInitialBlackout = 0
 
 function Get-CtsTrafficDelta([Double] $Timestamp, [Double] $NewValue) {
     return ($NewValue - $Timestamp) * 1000
@@ -77,40 +78,52 @@ function Wait-CtsClientJob($Job) {
     throw "Wait-CtsClientJob : Timed out"
 }
 
+$servers = @()
+$client = @{
+    ICMPJob = $null
+    LastPingTick = [Int64](Get-Date).Ticks
+
+    TCPJob = $null
+    LastTCPSend = 0d
+    LastTCPRecv = 0d
+
+    UDPJob = $null
+    LastUDPRecv = 0d
+    InitialUDPBlackout = 0
+}
+
 try {
-    # Start ctsTraffic servers
-    $serverJobs = @()
-    $serverJobs += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, "TCP", "Server" `
-                                  -AsJob -ComputerName $Target -Credential $Credential
-    $serverJobs += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, "UDP", "Server" `
-                                  -AsJob -ComputerName $Target -Credential $Credential
+    # ICMP
+    $client.ICMPJob = Start-Job -ScriptBlock $pingCmd -ArgumentList $Target
 
-    # Start clients
-    $ctsTCPJob = Start-Job $ctsTrafficCmd -ArgumentList $BinDir, $Target, "TCP", "Client"
-    $ctsUDPJob = Start-Job $ctsTrafficCmd -ArgumentList $BinDir, $Target, "UDP", "Client"
-    $pingJob = Start-Job -ScriptBlock $pingCmd -ArgumentList $Target
+    # TCP
+    $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $TCPPort, "TCP", "Server" -ComputerName $Target -Credential $Credential -AsJob
+    $client.TCPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $TCPPort, "TCP", "Client"
+    Wait-CtsClientJob $client.TCPJob
 
-    Wait-CtsClientJob $ctsTCPJob
-    Wait-CtsClientJob $ctsUDPJob
+    # UDP
+    $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, "UDP", "Server" -ComputerName $Target -Credential $Credential -AsJob
+    $client.UDPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, "UDP", "Client"
+    Wait-CtsClientJob $client.UDPJob
 
     Write-Host "Monitoring... Ctrl+C to stop."
     while ($true) {
-        Receive-Job $pingJob | foreach {
+        Receive-Job $client.ICMPJob | foreach {
             #Write-Debug $_
             $tickCount, $response = $_ -split ","
 
             if ($response -like "Reply from*") {
-                $deltaMS = ([Int64]$tickCount / 10000) - ($lastPingTickCount / 10000)
+                $deltaMS = ([Int64]$tickCount / 10000) - ($client.LastPingTick / 10000)
                 if ($deltaMS -gt $BlackoutThreshold) {
-                    Write-Output "ICMP Blackout: $deltaMS ms"
+                    Write-Output "$Target ICMP Blackout: $deltaMS ms"
                 }
 
-                $lastPingTickCount = $tickCount
+                $client.LastPingTick = $tickCount
             }
         }
 
         # Parse TCP output
-        Receive-Job $ctsTCPJob | foreach {
+        Receive-Job $client.TCPJob | foreach {
             #Write-Debug $_
             $null, $timestamp, $sendBps, $recvBps, $null = $_ -split "\s+"
 
@@ -119,24 +132,24 @@ try {
             }
 
             if (($sendBps -as [Int]) -gt 0) {
-                $delta = Get-CtsTrafficDelta $lastTCPSend $timestamp
+                $delta = Get-CtsTrafficDelta $client.LastTCPSend $timestamp
                 if ($delta -gt $BlackoutThreshold) {
-                    Write-Output "TCP Send Blackout: $delta ms"
+                    Write-Output "$Target TCP Send Blackout: $delta ms"
                 }
-                $lastTCPSend = $timestamp
+                $client.LastTCPSend = $timestamp
             }
 
             if (($recvBps -as [Int]) -gt 0) {
-                $delta = Get-CtsTrafficDelta $lastTCPRecv $timestamp
+                $delta = Get-CtsTrafficDelta $client.LastTCPRecv $timestamp
                 if ($delta -gt $BlackoutThreshold) {
-                    Write-Output "TCP Recv Blackout: $delta ms"
+                    Write-Output "$Target TCP Recv Blackout: $delta ms"
                 }
-                $lastTCPRecv = $timestamp
+                $client.LastTCPRecv = $timestamp
             }
         }
     
         # Parse UDP output
-        Receive-Job $ctsUDPJob | foreach {
+        Receive-Job $client.UDPJob | foreach {
             #Write-Debug $_
             $null, $timestamp, $bitsPerSecond, $null = $_ -split "\s+"
 
@@ -145,26 +158,26 @@ try {
             }
 
             if (($bitsPerSecond -as [Int]) -gt 0) {
-                if ($udpInitialBlackout -gt 0) {
-                    Write-Output "UDP Recv Blackout: $($udpInitialBlackout + ([Double]$timestamp * 1000)) ms"
-                    $udpInitialBlackout = 0
+                if ($client.InitialUDPBlackout -gt 0) {
+                    Write-Output "$Target UDP Recv Blackout: $($client.InitialUDPBlackout + ([Double]$timestamp * 1000)) ms"
+                    $client.InitialUDPBlackout = 0
                 }
-                $lastUDP = $timestamp
-            } elseif ($udpInitialBlackout -eq 0) {
-                $delta = Get-CtsTrafficDelta $lastUDP $timestamp
+                $client.LastUDPRecv = $timestamp
+            } elseif ($client.InitialUDPBlackout -eq 0) {
+                $delta = Get-CtsTrafficDelta $client.LastUDPRecv $timestamp
                 if ($delta -gt $BlackoutThreshold) {
 
                     # CTS Traffic won't restablish the existing UDP
                     # connection, so we need to restart the client.
                     $restartTime = Measure-Command {
-                        $ctsUDPJob | Stop-Job | Remove-Job
-                        $ctsUDPJob = Start-Job $ctsTrafficCmd -ArgumentList $BinDir, $Target, "UDP", "Client"
-                        Wait-CtsClientJob $ctsUDPJob
+                        $client.UDPJob | Stop-Job | Remove-Job
+                        $client.UDPJob = Start-Job $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, "UDP", "Client"
+                        Wait-CtsClientJob $client.UDPJob
                     }
 
                     #Write-Debug "Restart time = $($restartTime.TotalMilliseconds)"
 
-                    $udpInitialBlackout = $delta + $restartTime.TotalMilliseconds
+                    $client.InitialUDPBlackout = $delta + $restartTime.TotalMilliseconds
                 }
             }
         }
@@ -173,9 +186,11 @@ try {
     $_
 } finally {
     Write-Host "Stopping background tasks..."
-    $serverJobs | foreach {$_ | Stop-Job | Remove-Job}
 
-    $ctsTCPJob | Stop-Job | Remove-Job
-    $ctsUDPJob | Stop-Job | Remove-Job
-    $pingJob | Stop-Job | Remove-Job
+    Invoke-Command -ScriptBlock {taskkill /im ctsTraffic.exe /F} -ComputerName $Target -Credential $Credential
+    $servers | foreach {$_ | Stop-Job | Remove-Job}
+
+    $client.ICMPJob | Stop-Job | Remove-Job
+    $client.TCPJob | Stop-Job | Remove-Job
+    $client.UDPJob | Stop-Job | Remove-Job
 }
