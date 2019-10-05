@@ -7,12 +7,15 @@ NetPerfTest is a collection of tools used to generate tests, run tests and colle
 ## Pre-Requisites
 The goal here is to collect networking perf stats involving the Source and Destination machines that are needing diagnosis.
 To accomplish this, we will leverage multiple Powershell scripts.
-In order to be able to run Powershell scripts, we must set the 
+In order to be able to run Powershell scripts, we must set the powershell Execution Policy
+```PowerShell
+Powershell.exe Set-ExecutionPolicy RemoteSigned -Force
+```
 
 ## Commands Generation
 Now that our pre-requisites have been met, we can start the testing process. 
 First, we must generate a bunch of relevant networking tests between these machines.
-Create a folder that will hold the output of these scripts, say: C:\Temp\MyDirectoryForTesting
+Create a folder that will hold the output of these scripts, say: C:\Temp\MyDirectoryForTesting.
 Now that the folder is created, we’re ready to generate the commands using the PERFTEST cmdlet : 
 
 ```PowerShell 
