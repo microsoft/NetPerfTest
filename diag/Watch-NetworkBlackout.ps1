@@ -10,9 +10,15 @@ param(
     [PSCredential] $Credential,
 
     [Parameter(Mandatory=$false)]
+    [ValidateRange(0, 65536)]
     [Int] $TCPPort = 5554,
 
     [Parameter(Mandatory=$false)]
+    [ValidateRange(0, [Int]::MaxValue)]
+    [Int] $TCPConnections = 1,
+
+    [Parameter(Mandatory=$false)]
+    [ValidateRange(0, 65536)]
     [Int] $UDPPort = 5555,
 
     [Parameter(Mandatory=$false)]
@@ -21,7 +27,11 @@ param(
 
     [Parameter(Mandatory=$false)]
     [ValidateScript({Test-Path $_ -PathType Container})]
-    [String] $BinDir = $PSScriptRoot
+    [String] $BinDir = $PSScriptRoot,
+
+    [Parameter(Mandatory=$false)]
+    [ValidateScript({Test-Path $_ -PathType Container})]
+    [String] $TargetBinDir = $BinDir
 )
 
 $pingCmd = {
@@ -35,36 +45,35 @@ $pingCmd = {
 }
 
 $ctsTrafficCmd = {
-    param($BinDir, $Target, $Port, $Protocol, $Role)
-
-    $bufferSize = 64 # bytes
-    $rateLimitPeriod = 1 # ms
-
-    # Allows 1 packet per rateLimitPeriod
-    $rateLimit = $bufferSize * (1000 / $rateLimitPeriod)
+    param($BinDir, $Target, $Port, $Connections, $Protocol, $Role)
 
     if ($Protocol -eq "UDP") {
         $commonArgs = @("-Protocol:UDP", "-Port:$Port", "-BitsPerSecond:320000", "-FrameRate:1000", "-BufferDepth:1", "-StreamLength:100000")
     } else {
+        $bufferSize = 64 # bytes
+        $rateLimitPeriod = 1 # ms
+    
+        # Allows 1 packet per rateLimitPeriod
+        $rateLimit = $bufferSize * (1000 / $rateLimitPeriod)
+
         $commonArgs = @("-Protocol:TCP", "-Port:$Port", "-Pattern:duplex", "-Buffer:$BufferSize", "-RateLimit:$rateLimit", "-RateLimitPeriod:$rateLimitPeriod")
     }
 
     if ($Role -eq "Server") {
         &"$BinDir\ctsTraffic.exe" -Listen:$Target $commonArgs
     } else {
-        &"$BinDir\ctsTraffic.exe" -Target:$Target $commonArgs -Connections:1 -ConsoleVerbosity:1 -StatusUpdate:10
+        &"$BinDir\ctsTraffic.exe" -Target:$Target $commonArgs -Connections:$Connections -ConsoleVerbosity:1 -StatusUpdate:10
     }
 }
-
 
 function Get-CtsTrafficDelta([Double] $Timestamp, [Double] $NewValue) {
     return ($NewValue - $Timestamp) * 1000
 }
 
 <#
-    Cts Traffic will always output a bunch of garbage to the
-    console we don't care about. This function "scrolls" past
-    it so it's not parsed.
+    Cts Traffic always outputs a bunch of text to the console
+    we don't care about. This function "scrolls" past it so
+    it's not parsed.
 #>
 function Wait-CtsClientJob($Job) {
     for ($i = 0; $i -lt 20000; $i++) {
@@ -97,13 +106,13 @@ try {
     $client.ICMPJob = Start-Job -ScriptBlock $pingCmd -ArgumentList $Target
 
     # TCP
-    $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $TCPPort, "TCP", "Server" -ComputerName $Target -Credential $Credential -AsJob
-    $client.TCPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $TCPPort, "TCP", "Client"
+    $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $TCPPort, $TCPConnections, "TCP", "Server" -ComputerName $Target -Credential $Credential -AsJob
+    $client.TCPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $TCPPort, $TCPConnections, "TCP", "Client"
     Wait-CtsClientJob $client.TCPJob
 
     # UDP
-    $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, "UDP", "Server" -ComputerName $Target -Credential $Credential -AsJob
-    $client.UDPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, "UDP", "Client"
+    $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $UDPPort, 1, "UDP", "Server" -ComputerName $Target -Credential $Credential -AsJob
+    $client.UDPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, 1, "UDP", "Client"
     Wait-CtsClientJob $client.UDPJob
 
     Write-Host "Monitoring... Ctrl+C to stop."
@@ -130,7 +139,7 @@ try {
             if ($timestamp -eq "TimeSlice") {
                 continue
             }
-
+ 
             if (($sendBps -as [Int]) -gt 0) {
                 $delta = Get-CtsTrafficDelta $client.LastTCPSend $timestamp
                 if ($delta -gt $BlackoutThreshold) {
@@ -171,7 +180,7 @@ try {
                     # connection, so we need to restart the client.
                     $restartTime = Measure-Command {
                         $client.UDPJob | Stop-Job | Remove-Job
-                        $client.UDPJob = Start-Job $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, "UDP", "Client"
+                        $client.UDPJob = Start-Job $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, 1, "UDP", "Client"
                         Wait-CtsClientJob $client.UDPJob
                     }
 
@@ -183,7 +192,7 @@ try {
         }
     } # while ($true)
 } catch {
-    $_
+    throw $_
 } finally {
     Write-Host "Stopping background tasks..."
 
