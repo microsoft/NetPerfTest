@@ -14,8 +14,8 @@ param(
     [Int] $BlackoutThreshold = 1000, # ms
 
     [Parameter(Mandatory=$false)]
-    [ValidateSet("ICMP", "TCP", "UDP")]
-    [String[]] $Protocols = @("ICMP", "TCP", "UDP"),
+    [ValidateSet("*", "ICMP", "TCP", "UDP")]
+    [String[]] $Protocols = "*",
 
     [Parameter(Mandatory=$false)]
     [ValidateRange(0, 65536)]
@@ -109,17 +109,17 @@ try {
         InitialUDPBlackout = 0
     }
 
-    if ("ICMP" -in $Protocols) {
+    if (("ICMP" -in $Protocols) -or ("*" -in $Protocols)) {
         $client.ICMPJob = Start-Job -ScriptBlock $pingCmd -ArgumentList $Target
     }
 
-    if ("TCP" -in $Protocols) {
+    if (("TCP" -in $Protocols) -or ("*" -in $Protocols)) {
         $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $TCPPort, $TCPConnections, "TCP", "Server" -ComputerName $Target -Credential $Credential -AsJob
         $client.TCPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $TCPPort, $TCPConnections, "TCP", "Client"
         Wait-CtsClientJob $client.TCPJob
     }
 
-    if ("UDP" -in $Protocols) {
+    if (("UDP" -in $Protocols) -or ("*" -in $Protocols)) {
         $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $UDPPort, 1, "UDP", "Server" -ComputerName $Target -Credential $Credential -AsJob
         $client.UDPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, 1, "UDP", "Client"
         Wait-CtsClientJob $client.UDPJob
