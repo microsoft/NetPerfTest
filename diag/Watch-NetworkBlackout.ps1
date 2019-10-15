@@ -10,20 +10,24 @@ param(
     [PSCredential] $Credential,
 
     [Parameter(Mandatory=$false)]
+    [ValidateRange(1000, [Int]::MaxValue)]
+    [Int] $BlackoutThreshold = 1000, # ms
+
+    [Parameter(Mandatory=$false)]
+    [ValidateSet("ICMP", "TCP", "UDP")]
+    [String[]] $Protocols = @("ICMP", "TCP", "UDP"),
+
+    [Parameter(Mandatory=$false)]
     [ValidateRange(0, 65536)]
     [Int] $TCPPort = 5554,
 
     [Parameter(Mandatory=$false)]
-    [ValidateRange(0, [Int]::MaxValue)]
+    [ValidateRange(1, [Int]::MaxValue)]
     [Int] $TCPConnections = 1,
 
     [Parameter(Mandatory=$false)]
     [ValidateRange(0, 65536)]
     [Int] $UDPPort = 5555,
-
-    [Parameter(Mandatory=$false)]
-    [ValidateRange(1000, [Int]::MaxValue)]
-    [Int] $BlackoutThreshold = 1000, # ms
 
     [Parameter(Mandatory=$false)]
     [ValidateScript({Test-Path $_ -PathType Container})]
@@ -52,7 +56,7 @@ $ctsTrafficCmd = {
     } else {
         $bufferSize = 64 # bytes
         $rateLimitPeriod = 1 # ms
-    
+
         # Allows 1 packet per rateLimitPeriod
         $rateLimit = $bufferSize * (1000 / $rateLimitPeriod)
 
@@ -87,33 +91,39 @@ function Wait-CtsClientJob($Job) {
     throw "Wait-CtsClientJob : Timed out"
 }
 
-$servers = @()
-$client = @{
-    ICMPJob = $null
-    LastPingTick = [Int64](Get-Date).Ticks
-
-    TCPJob = $null
-    LastTCPSend = 0d
-    LastTCPRecv = 0d
-
-    UDPJob = $null
-    LastUDPRecv = 0d
-    InitialUDPBlackout = 0
-}
-
 try {
-    # ICMP
-    $client.ICMPJob = Start-Job -ScriptBlock $pingCmd -ArgumentList $Target
+    $emptyJob = Start-Job {return}
 
-    # TCP
-    $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $TCPPort, $TCPConnections, "TCP", "Server" -ComputerName $Target -Credential $Credential -AsJob
-    $client.TCPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $TCPPort, $TCPConnections, "TCP", "Client"
-    Wait-CtsClientJob $client.TCPJob
+    # Init state tracking
+    $servers = @()
+    $client = @{
+        ICMPJob = $emptyJob
+        LastPingTick = [Int64](Get-Date).Ticks
 
-    # UDP
-    $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $UDPPort, 1, "UDP", "Server" -ComputerName $Target -Credential $Credential -AsJob
-    $client.UDPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, 1, "UDP", "Client"
-    Wait-CtsClientJob $client.UDPJob
+        TCPJob = $emptyJob
+        LastTCPSend = 0d
+        LastTCPRecv = 0d
+
+        UDPJob = $emptyJob
+        LastUDPRecv = 0d
+        InitialUDPBlackout = 0
+    }
+
+    if ("ICMP" -in $Protocols) {
+        $client.ICMPJob = Start-Job -ScriptBlock $pingCmd -ArgumentList $Target
+    }
+
+    if ("TCP" -in $Protocols) {
+        $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $TCPPort, $TCPConnections, "TCP", "Server" -ComputerName $Target -Credential $Credential -AsJob
+        $client.TCPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $TCPPort, $TCPConnections, "TCP", "Client"
+        Wait-CtsClientJob $client.TCPJob
+    }
+
+    if ("UDP" -in $Protocols) {
+        $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $UDPPort, 1, "UDP", "Server" -ComputerName $Target -Credential $Credential -AsJob
+        $client.UDPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, 1, "UDP", "Client"
+        Wait-CtsClientJob $client.UDPJob
+    }
 
     Write-Host "Monitoring... Ctrl+C to stop."
     while ($true) {
@@ -202,4 +212,6 @@ try {
     $client.ICMPJob | Stop-Job | Remove-Job
     $client.TCPJob | Stop-Job | Remove-Job
     $client.UDPJob | Stop-Job | Remove-Job
+
+    $emptyJob | Stop-Job | Remove-Job
 }
