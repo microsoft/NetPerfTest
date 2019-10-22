@@ -2,12 +2,20 @@
 .SYNOPSIS
     Monitor a target system for ICMP, TCP, and UDP network blackout.
 #>
+[CmdletBinding(DefaultParameterSetName="Remoting")]
 param(
     [Parameter(Mandatory=$true)]
     [String] $Target,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$false)]
+    [String] $PingTarget = $Target,
+
+    [Parameter(ParameterSetName="Remoting", Mandatory=$true)]
     [PSCredential] $Credential,
+
+    [Parameter(ParameterSetName="Local", Mandatory=$true)]
+    [ValidateSet("Client", "Server")]
+    [String] $Role,
 
     [Parameter(Mandatory=$false)]
     [ValidateRange(1000, [Int]::MaxValue)]
@@ -26,6 +34,10 @@ param(
     [Int] $TCPConnections = 1,
 
     [Parameter(Mandatory=$false)]
+    [ValidateRange(1, [Int]::MaxValue)]
+    [Int] $TCPMillisecondsPerPacket = 1,
+
+    [Parameter(Mandatory=$false)]
     [ValidateRange(0, 65536)]
     [Int] $UDPPort = 5555,
 
@@ -33,7 +45,7 @@ param(
     [ValidateScript({Test-Path $_ -PathType Container})]
     [String] $BinDir = $PSScriptRoot,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(ParameterSetName="Remoting", Mandatory=$false)]
     [ValidateScript({Test-Path $_ -PathType Container})]
     [String] $TargetBinDir = $BinDir
 )
@@ -49,22 +61,20 @@ $pingCmd = {
 }
 
 $ctsTrafficCmd = {
-    param($BinDir, $Target, $Port, $Connections, $Protocol, $Role)
+    param($BinDir, $Target, $Port, $Connections, $msPerPacket, $Protocol, $Role)
 
     if ($Protocol -eq "UDP") {
         $commonArgs = @("-Protocol:UDP", "-Port:$Port", "-BitsPerSecond:320000", "-FrameRate:1000", "-BufferDepth:1", "-StreamLength:100000")
     } else {
-        $bufferSize = 64 # bytes
-        $rateLimitPeriod = 1 # ms
+        # Allow 1 packet per msPerPacket
+        $bufferSize = 16 # bytes
+        $rateLimit = $bufferSize * (1000 / $msPerPacket)
 
-        # Allows 1 packet per rateLimitPeriod
-        $rateLimit = $bufferSize * (1000 / $rateLimitPeriod)
-
-        $commonArgs = @("-Protocol:TCP", "-Port:$Port", "-Pattern:duplex", "-Buffer:$BufferSize", "-RateLimit:$rateLimit", "-RateLimitPeriod:$rateLimitPeriod")
+        $commonArgs = @("-Protocol:TCP", "-Port:$Port", "-Pattern:duplex", "-Buffer:$BufferSize", "-RateLimit:$rateLimit", "-RateLimitPeriod:$msPerPacket")
     }
 
     if ($Role -eq "Server") {
-        &"$BinDir\ctsTraffic.exe" -Listen:$Target $commonArgs
+        &"$BinDir\ctsTraffic.exe" -Listen:* $commonArgs
     } else {
         &"$BinDir\ctsTraffic.exe" -Target:$Target $commonArgs -Connections:$Connections -ConsoleVerbosity:1 -StatusUpdate:10
     }
@@ -94,6 +104,17 @@ function Wait-CtsClientJob($Job) {
 try {
     $emptyJob = Start-Job {return}
 
+    $startServer = ($Role -eq "Server")
+    $startClient = ($Role -eq "Client")
+    $remotingParams = @{}
+
+    if ($PSCmdlet.ParameterSetName -eq "Remoting") {
+        $startServer = $true
+        $startClient = $true
+        $remotingParams["ComputerName"] = $Target
+        $remotingParams["Credential"] = $Credential
+    }
+
     # Init state tracking
     $servers = @()
     $client = @{
@@ -110,19 +131,31 @@ try {
     }
 
     if (("ICMP" -in $Protocols) -or ("*" -in $Protocols)) {
-        $client.ICMPJob = Start-Job -ScriptBlock $pingCmd -ArgumentList $Target
+        if ($startClient) {
+            $client.ICMPJob = Start-Job -ScriptBlock $pingCmd -ArgumentList $PingTarget
+        }
     }
 
     if (("TCP" -in $Protocols) -or ("*" -in $Protocols)) {
-        $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $TCPPort, $TCPConnections, "TCP", "Server" -ComputerName $Target -Credential $Credential -AsJob
-        $client.TCPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $TCPPort, $TCPConnections, "TCP", "Client"
-        Wait-CtsClientJob $client.TCPJob
+        if ($startServer) {
+            $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $TCPPort, $TCPConnections, $TCPMillisecondsPerPacket, "TCP", "Server" @remotingParams -AsJob
+        }
+
+        if ($startClient) {
+            $client.TCPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $TCPPort, $TCPConnections, $TCPMillisecondsPerPacket, "TCP", "Client"
+            Wait-CtsClientJob $client.TCPJob
+        }
     }
 
     if (("UDP" -in $Protocols) -or ("*" -in $Protocols)) {
-        $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $UDPPort, 1, "UDP", "Server" -ComputerName $Target -Credential $Credential -AsJob
-        $client.UDPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, 1, "UDP", "Client"
-        Wait-CtsClientJob $client.UDPJob
+        if ($startServer) {
+            $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $UDPPort, 1, 1, "UDP", "Server" @remotingParams -AsJob
+        }
+
+        if ($startClient) {
+            $client.UDPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, 1, 1, "UDP", "Client"
+            Wait-CtsClientJob $client.UDPJob
+        }
     }
 
     Write-Host "Monitoring... Ctrl+C to stop."
@@ -166,7 +199,7 @@ try {
                 $client.LastTCPRecv = $timestamp
             }
         }
-    
+
         # Parse UDP output
         Receive-Job $client.UDPJob | foreach {
             #Write-Debug $_
@@ -206,7 +239,9 @@ try {
 } finally {
     Write-Host "Stopping background tasks..."
 
-    Invoke-Command -ScriptBlock {taskkill /im ctsTraffic.exe /F} -ComputerName $Target -Credential $Credential
+    if ($PSCmdlet.ParameterSetName -eq "Remoting") {
+        Invoke-Command -ScriptBlock {taskkill /im ctsTraffic.exe /F} -ComputerName $Target -Credential $Credential
+    }
     $servers | foreach {$_ | Stop-Job | Remove-Job}
 
     $client.ICMPJob | Stop-Job | Remove-Job
