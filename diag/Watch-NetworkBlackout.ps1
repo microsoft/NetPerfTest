@@ -4,18 +4,22 @@
 #>
 [CmdletBinding(DefaultParameterSetName="Remoting")]
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(ParameterSetName="Client", Mandatory=$true)]
+    [Parameter(ParameterSetName="Remoting", Mandatory=$true)]
     [String] $Target,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(ParameterSetName="Client", Mandatory=$false)]
+    [Parameter(ParameterSetName="Remoting", Mandatory=$false)]
     [String] $PingTarget = $Target,
 
     [Parameter(ParameterSetName="Remoting", Mandatory=$true)]
     [PSCredential] $Credential,
 
-    [Parameter(ParameterSetName="Local", Mandatory=$true)]
-    [ValidateSet("Client", "Server")]
-    [String] $Role,
+    [Parameter(ParameterSetName="Client", Mandatory=$true)]
+    [Switch] $Client,
+
+    [Parameter(ParameterSetName="Server", Mandatory=$true)]
+    [Switch] $Server,
 
     [Parameter(Mandatory=$false)]
     [ValidateRange(1000, [Int]::MaxValue)]
@@ -47,7 +51,10 @@ param(
 
     [Parameter(ParameterSetName="Remoting", Mandatory=$false)]
     [ValidateScript({Test-Path $_ -PathType Container})]
-    [String] $TargetBinDir = $BinDir
+    [String] $TargetBinDir = $BinDir,
+
+    [Parameter(Mandatory=$false)]
+    [Switch] $AsJob
 )
 
 $pingCmd = {
@@ -101,81 +108,80 @@ function Wait-CtsClientJob($Job) {
     throw "Wait-CtsClientJob : Timed out"
 }
 
+$emptyJob = Start-Job {return}
+
+$remotingParams = @{
+    "ComputerName" = "localhost"
+}
+
+if ($PSCmdlet.ParameterSetName -eq "Remoting") {
+    $Server = $true
+    $Client = $true
+    $remotingParams["ComputerName"] = $Target
+    $remotingParams["Credential"] = $Credential
+}
+
+$state = @{
+    ServerJobs = @()
+    ICMPJob = $emptyJob
+    LastPingTick = [Int64](Get-Date).Ticks
+
+    TCPJob = $emptyJob
+    LastTCPSend = 0d
+    LastTCPRecv = 0d
+
+    UDPJob = $emptyJob
+    LastUDPRecv = 0d
+    InitialUDPBlackout = 0
+}
+
 try {
-    $emptyJob = Start-Job {return}
-
-    $startServer = ($Role -eq "Server")
-    $startClient = ($Role -eq "Client")
-    $remotingParams = @{}
-
-    if ($PSCmdlet.ParameterSetName -eq "Remoting") {
-        $startServer = $true
-        $startClient = $true
-        $remotingParams["ComputerName"] = $Target
-        $remotingParams["Credential"] = $Credential
-    }
-
-    # Init state tracking
-    $servers = @()
-    $client = @{
-        ICMPJob = $emptyJob
-        LastPingTick = [Int64](Get-Date).Ticks
-
-        TCPJob = $emptyJob
-        LastTCPSend = 0d
-        LastTCPRecv = 0d
-
-        UDPJob = $emptyJob
-        LastUDPRecv = 0d
-        InitialUDPBlackout = 0
-    }
-
     if (("ICMP" -in $Protocols) -or ("*" -in $Protocols)) {
-        if ($startClient) {
-            $client.ICMPJob = Start-Job -ScriptBlock $pingCmd -ArgumentList $PingTarget
+        if ($Client) {
+            $state.ICMPJob = Start-Job -ScriptBlock $pingCmd -ArgumentList $PingTarget
         }
     }
 
     if (("TCP" -in $Protocols) -or ("*" -in $Protocols)) {
-        if ($startServer) {
-            $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $TCPPort, $TCPConnections, $TCPMillisecondsPerPacket, "TCP", "Server" @remotingParams -AsJob
+        if ($Server) {
+            $state.ServerJobs += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $TCPPort, $TCPConnections, $TCPMillisecondsPerPacket, "TCP", "Server" @remotingParams -AsJob
         }
 
-        if ($startClient) {
-            $client.TCPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $TCPPort, $TCPConnections, $TCPMillisecondsPerPacket, "TCP", "Client"
-            Wait-CtsClientJob $client.TCPJob
+        if ($Client) {
+            $state.TCPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $TCPPort, $TCPConnections, $TCPMillisecondsPerPacket, "TCP", "Client"
+            Wait-CtsClientJob $state.TCPJob
         }
     }
 
     if (("UDP" -in $Protocols) -or ("*" -in $Protocols)) {
-        if ($startServer) {
-            $servers += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $UDPPort, 1, 1, "UDP", "Server" @remotingParams -AsJob
+        if ($Server) {
+            $state.ServerJobs += Invoke-Command -ScriptBlock $ctsTrafficCmd -ArgumentList $TargetBinDir, $Target, $UDPPort, 1, 1, "UDP", "Server" @remotingParams -AsJob
         }
 
-        if ($startClient) {
-            $client.UDPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, 1, 1, "UDP", "Client"
-            Wait-CtsClientJob $client.UDPJob
+        if ($Client) {
+            $state.UDPJob = Start-Job -ScriptBlock $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, 1, 1, "UDP", "Client"
+            Wait-CtsClientJob $state.UDPJob
         }
     }
 
     Write-Host "Monitoring... Ctrl+C to stop."
     while ($true) {
-        Receive-Job $client.ICMPJob | foreach {
+        Receive-Job $state.ICMPJob | foreach {
             #Write-Debug $_
             $tickCount, $response = $_ -split ","
 
             if ($response -like "Reply from*") {
-                $deltaMS = ([Int64]$tickCount / 10000) - ($client.LastPingTick / 10000)
+                $deltaMS = ([Int64]$tickCount / 10000) - ($state.LastPingTick / 10000)
                 if ($deltaMS -gt $BlackoutThreshold) {
                     Write-Output "$Target ICMP Blackout: $deltaMS ms"
                 }
 
-                $client.LastPingTick = $tickCount
+                $state.LastPingTick = $tickCount
             }
         }
 
         # Parse TCP output
-        Receive-Job $client.TCPJob | foreach {
+        Receive-Job $state.TCPJob | foreach {
             #Write-Debug $_
             $null, $timestamp, $sendBps, $recvBps, $null = $_ -split "\s+"
 
@@ -184,24 +190,24 @@ try {
             }
  
             if (($sendBps -as [Int]) -gt 0) {
-                $delta = Get-CtsTrafficDelta $client.LastTCPSend $timestamp
+                $delta = Get-CtsTrafficDelta $state.LastTCPSend $timestamp
                 if ($delta -gt $BlackoutThreshold) {
                     Write-Output "$Target TCP Send Blackout: $delta ms"
                 }
-                $client.LastTCPSend = $timestamp
+                $state.LastTCPSend = $timestamp
             }
 
             if (($recvBps -as [Int]) -gt 0) {
-                $delta = Get-CtsTrafficDelta $client.LastTCPRecv $timestamp
+                $delta = Get-CtsTrafficDelta $state.LastTCPRecv $timestamp
                 if ($delta -gt $BlackoutThreshold) {
                     Write-Output "$Target TCP Recv Blackout: $delta ms"
                 }
-                $client.LastTCPRecv = $timestamp
+                $state.LastTCPRecv = $timestamp
             }
         }
 
         # Parse UDP output
-        Receive-Job $client.UDPJob | foreach {
+        Receive-Job $state.UDPJob | foreach {
             #Write-Debug $_
             $null, $timestamp, $bitsPerSecond, $null = $_ -split "\s+"
 
@@ -210,26 +216,26 @@ try {
             }
 
             if (($bitsPerSecond -as [Int]) -gt 0) {
-                if ($client.InitialUDPBlackout -gt 0) {
-                    Write-Output "$Target UDP Recv Blackout: $($client.InitialUDPBlackout + ([Double]$timestamp * 1000)) ms"
-                    $client.InitialUDPBlackout = 0
+                if ($state.InitialUDPBlackout -gt 0) {
+                    Write-Output "$Target UDP Recv Blackout: $($state.InitialUDPBlackout + ([Double]$timestamp * 1000)) ms"
+                    $state.InitialUDPBlackout = 0
                 }
-                $client.LastUDPRecv = $timestamp
-            } elseif ($client.InitialUDPBlackout -eq 0) {
-                $delta = Get-CtsTrafficDelta $client.LastUDPRecv $timestamp
+                $state.LastUDPRecv = $timestamp
+            } elseif ($state.InitialUDPBlackout -eq 0) {
+                $delta = Get-CtsTrafficDelta $state.LastUDPRecv $timestamp
                 if ($delta -gt $BlackoutThreshold) {
 
                     # CTS Traffic won't restablish the existing UDP
                     # connection, so we need to restart the client.
                     $restartTime = Measure-Command {
-                        $client.UDPJob | Stop-Job | Remove-Job
-                        $client.UDPJob = Start-Job $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, 1, "UDP", "Client"
-                        Wait-CtsClientJob $client.UDPJob
+                        $state.UDPJob | Stop-Job | Remove-Job
+                        $state.UDPJob = Start-Job $ctsTrafficCmd -ArgumentList $BinDir, $Target, $UDPPort, 1, "UDP", "Client"
+                        Wait-CtsClientJob $state.UDPJob
                     }
 
                     #Write-Debug "Restart time = $($restartTime.TotalMilliseconds)"
 
-                    $client.InitialUDPBlackout = $delta + $restartTime.TotalMilliseconds
+                    $state.InitialUDPBlackout = $delta + $restartTime.TotalMilliseconds
                 }
             }
         }
@@ -242,11 +248,11 @@ try {
     if ($PSCmdlet.ParameterSetName -eq "Remoting") {
         Invoke-Command -ScriptBlock {taskkill /im ctsTraffic.exe /F} -ComputerName $Target -Credential $Credential
     }
-    $servers | foreach {$_ | Stop-Job | Remove-Job}
+    $state.ServerJobs | foreach {$_ | Stop-Job | Remove-Job}
 
-    $client.ICMPJob | Stop-Job | Remove-Job
-    $client.TCPJob | Stop-Job | Remove-Job
-    $client.UDPJob | Stop-Job | Remove-Job
+    $state.ICMPJob | Stop-Job | Remove-Job
+    $state.TCPJob | Stop-Job | Remove-Job
+    $state.UDPJob | Stop-Job | Remove-Job
 
     $emptyJob | Stop-Job | Remove-Job
 }
