@@ -1,13 +1,37 @@
 $Logfile = ".\$(gc env:computername).log"
+Clear-content -Path $Logfile -Force -ErrorAction Ignore
 
 #Function to write to log file
 Function LogWrite
 {
 Param ([string]$logstring, [string] $echoToConsole=$false)
+    $timeStampLogString = "[{0}] {1}"-f (Get-Date -Format "MM/dd/yyyy HH:mm"), $logstring
     if ($echoToConsole -eq $true) {
-        Write-Host $logstring
+        Write-Host $timeStampLogString
     }
-    Add-content $Logfile -value $logstring
+    Add-content $Logfile -value $timeStampLogString
+}
+
+# Certain tools like ntttcp have params that need to be added to the actual timeout value between command pairs
+# to prevent premature termination of the send/recv processes
+Function GetActualTimeOutValue
+{
+Param ([Int]$AdditionalTimeout, [string] $Line)
+
+    [Int] $timeout = $AdditionalTimeout 
+    # currently we only bloat the timeout value with additional params for ntttcp. 
+    # as we onboard additional tools in the future, we will add tool specific logic here
+    if ($Line -match "ntttcp")
+    {
+        try {
+            [Int] $warmup = ($Line.Substring($Line.IndexOf("-wu")+("-wu".Length)+1).Split(' ')[0])
+            [Int] $cooldown = ($Line.Substring($Line.IndexOf("-cd")+("-cd".Length)+1).Split(' ')[0])
+            [Int] $rumtime = ($Line.Substring($Line.IndexOf("-t")+("-t".Length)+1).Split(' ')[0])
+            $timeout += $warmup + $cooldown + $rumtime
+        }
+       catch {}
+    }
+    return $timeout
 }
 
 #===============================================
@@ -88,7 +112,23 @@ $ScriptBlockRemoveFolderTree = {
 
 $ScriptBlockRunToolCmd = {
     param($Line) 
-    Start-Process -FilePath "cmd.exe" -ArgumentList ("/C $Line")
+    $logFileName = ""
+    if ($Line -match "ntttcp")
+    {
+        try {
+            $logFileName = ($Line.Substring($Line.IndexOf("-xml")+("-xml".Length)+1).Split(' ')[0]) -ireplace ".xml", ".txt"
+        }
+       catch {}
+    }
+
+    if (-Not [String]::IsNullOrWhiteSpace($logfileName))
+    {
+            Start-Process -RedirectStandardOutput $logfileName -FilePath "cmd.exe" -ArgumentList ("/C $Line")
+    }
+    else {
+            Start-Process -FilePath "cmd.exe" -ArgumentList ("/C $Line")
+    }
+
 } # $ScriptBlockRunToolCmd()
 
 $CheckProcessExitScriptBlock = {
@@ -198,7 +238,7 @@ Function ProcessCommands{
     ProcessToolCommands -Toolname "latte" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $CommandsDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds
 
     LogWrite "ProcessCommands Done!" $true
-    Move-Item -Path $Logfile -Destination "$CommandsDir" -ErrorAction Ignore
+    Move-Item -Path $Logfile -Destination "$CommandsDir" -Force -ErrorAction Ignore
 
 } # ProcessCommands()
 
@@ -319,13 +359,14 @@ param(
 
         $recvCommands = [System.IO.File]::OpenText($recvCmdFile)
         $sendCommands = [System.IO.File]::OpenText($sendCmdFile)
+        $sw = [diagnostics.stopwatch]::StartNew()
 
         while(($null -ne ($recvCmd = $recvCommands.ReadLine())) -and ($null -ne ($sendCmd = $sendCommands.ReadLine()))) {
 
             #change the command to add path to tool
             $recvCmd =  $recvCmd -ireplace [regex]::Escape("$toolexe"), "$CommandsDir\$toolexe"
             $sendCmd =  $sendCmd -ireplace [regex]::Escape("$toolexe"), "$CommandsDir\$toolexe"
-
+            $cmdPairCompleted = $false 
             # Work here to invoke recv commands
             # Since we want the files to get generated under a subfolder, we replace the path to include the subfolder
             $recvCmd =  $recvCmd -ireplace [regex]::Escape($CommandsDir), "$CommandsDir\Receiver"
@@ -339,36 +380,52 @@ param(
             Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRunToolCmd -ArgumentList $sendCmd
 
             # non blocking loop to check if the process made a clean exit
-            LogWrite "Waiting for $TimeoutValueBetweenCommandPairs seconds ..."
-            $timeout = new-timespan -Seconds $TimeoutValueBetweenCommandPairs
-            $sw = [diagnostics.stopwatch]::StartNew()
-            while ($sw.elapsed -lt $timeout){
+
+            # Calculate actual timeout value.
+            # For tools such as ntttcp, we may need to add additional #s for runtime, wu and cd times 
+            [int] $timeout = GetActualTimeOutValue -AdditionalTimeout $TimeoutValueBetweenCommandPairs -Line $sendCmd
+            LogWrite "Waiting for $timeout seconds ..."
+            $sw.Reset()
+            $sw.Start()
+            while (([math]::Round($sw.Elapsed.TotalSeconds,0)) -lt $timeout){
+
+                start-sleep -seconds 5
+
                 $checkRecvProcessExit = Invoke-Command -Session $recvPSSession -ScriptBlock $CheckProcessExitScriptBlock -ArgumentList "$Toolname"
                 $checkSendProcessExit = Invoke-Command -Session $sendPSSession -ScriptBlock $CheckProcessExitScriptBlock -ArgumentList "$Toolname"
 
                 if (($checkRecvProcessExit -eq $null)-and ($checkSendProcessExit -eq $null)){
+                    $cmdPairCompleted = $true
                     LogWrite "$Toolname exited on both Src and Dest machines"
                     break
                 }
-                start-sleep -seconds 5
             }
 
-        $checkRecvProcessExit = Invoke-Command -Session $recvPSSession -ScriptBlock $CheckProcessExitScriptBlock -ArgumentList "$Toolname"
-        $checkSendProcessExit = Invoke-Command -Session $sendPSSession -ScriptBlock $CheckProcessExitScriptBlock -ArgumentList "$Toolname"
+            $sw.Stop()
+            
+            #Wait for disk I/O to be completed
+            Write-VolumeCache (get-location).Drive.Name
+            start-sleep -seconds 30
 
-        if ($checkRecvProcessExit -ne $null) {
-            LogWrite " ++ $Toolname on Receiver did not exit cleanly... "
-        }
-        if ($checkSendProcessExit -ne $null) {
-            LogWrite " ++ $Toolname on Sender did not exit cleanly... "
-        }
+            # If command pair didnt gracefully exit, do the logging, cleanup here
+            if(-Not $cmdPairCompleted) {
+                $checkRecvProcessExit = Invoke-Command -Session $recvPSSession -ScriptBlock $CheckProcessExitScriptBlock -ArgumentList "$Toolname"
+                $checkSendProcessExit = Invoke-Command -Session $sendPSSession -ScriptBlock $CheckProcessExitScriptBlock -ArgumentList "$Toolname"
 
-        #Since time is up, clean up any processes that failed to exit gracefully so that the new commands can be issued
-        Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
-        Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
+                if ($checkRecvProcessExit -ne $null) {
+                    LogWrite (" ++ {0} on Receiver did not exit cleanly... Timer Elapsed Value: {1}" -f $Toolname, ($sw.elapsed.TotalSeconds))
+                }
+                if ($checkSendProcessExit -ne $null) {
+                    LogWrite (" ++ {0} on Sender did not exit cleanly...  Timer Elapsed Value: {1}" -f $Toolname, ($sw.elapsed.TotalSeconds))
+                }
+            }
 
-        #Add sleep between before running the next command pair
-        start-sleep -seconds 5
+            #Since time is up, clean up any processes that failed to exit gracefully so that the new commands can be issued
+            Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
+            Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
+
+            #Add sleep between before running the next command pair
+            start-sleep -seconds 5
 
         }
 
