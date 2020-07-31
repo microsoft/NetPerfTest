@@ -221,7 +221,8 @@ Function ProcessCommands{
     [SecureString]$SrcIpPassword,
     [Parameter(Mandatory=$False)] [string]$Bcleanup=$True,
     [Parameter(Mandatory=$False)]$ZipResults=$True,
-    [Parameter(Mandatory=$False)]$TimeoutValueInSeconds=90
+    [Parameter(Mandatory=$False)]$TimeoutValueInSeconds=90,
+    [Parameter(Mandatory=$False)]$PollTimeInSeconds=5
     )
 
     $recvComputerName = $DestIp
@@ -232,10 +233,10 @@ Function ProcessCommands{
     [PSCredential] $recvIPCreds = New-Object System.Management.Automation.PSCredential($DestIpUserName, $DestIpPassword)
 
     LogWrite "Processing ntttcp commands" $true
-    ProcessToolCommands -Toolname "ntttcp" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $CommandsDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds
+    ProcessToolCommands -Toolname "ntttcp" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $CommandsDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds
 
     LogWrite "Processing latte commands" $true
-    ProcessToolCommands -Toolname "latte" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $CommandsDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds
+    ProcessToolCommands -Toolname "latte" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $CommandsDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds
 
     LogWrite "ProcessCommands Done!" $true
     Move-Item -Path $Logfile -Destination "$CommandsDir" -Force -ErrorAction Ignore
@@ -280,7 +281,10 @@ Function ProcessCommands{
 
 .PARAMETER TimeoutValueBetweenCommandPairs
     Optional parameter to configure the amount of time the tool waits (in seconds) between command pairs before moving to the next set of commands
+    Note that for certain commands this value will get bloated to account for tool params like runtime, warm up time, cool down time, etc.
 
+.PARAMETER PollTimeInSeconds
+    Optional parameter to configure the amount of time the tool waits (in seconds) before waking up to check if the TimeoutValueBetweenCommandPairs period has elapsed
 #>
 Function ProcessToolCommands{
 param(
@@ -292,7 +296,8 @@ param(
     [Parameter(Mandatory=$False)] [PSCredential] $SendComputerCreds = [System.Management.Automation.PSCredential]::Empty,
     [Parameter(Mandatory=$False)] [PSCredential] $RecvComputerCreds = [System.Management.Automation.PSCredential]::Empty,
     [Parameter(Mandatory=$True)] [bool]$BZip,
-    [Parameter(Mandatory=$False)] [int] $TimeoutValueBetweenCommandPairs = 60
+    [Parameter(Mandatory=$False)] [int] $TimeoutValueBetweenCommandPairs = 60,
+    [Parameter(Mandatory=$False)] [int] $PollTimeInSeconds = 5
     )
     [bool] $gracefulCleanup = $False
 
@@ -389,7 +394,7 @@ param(
             $sw.Start()
             while (([math]::Round($sw.Elapsed.TotalSeconds,0)) -lt $timeout){
 
-                start-sleep -seconds 5
+                start-sleep -seconds $PollTimeInSeconds
 
                 $checkRecvProcessExit = Invoke-Command -Session $recvPSSession -ScriptBlock $CheckProcessExitScriptBlock -ArgumentList "$Toolname"
                 $checkSendProcessExit = Invoke-Command -Session $sendPSSession -ScriptBlock $CheckProcessExitScriptBlock -ArgumentList "$Toolname"
@@ -405,7 +410,6 @@ param(
             
             #Wait for disk I/O to be completed
             Write-VolumeCache (get-location).Drive.Name
-            start-sleep -seconds 30
 
             # If command pair didnt gracefully exit, do the logging, cleanup here
             if(-Not $cmdPairCompleted) {
@@ -425,7 +429,7 @@ param(
             Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
 
             #Add sleep between before running the next command pair
-            start-sleep -seconds 5
+            start-sleep -seconds $PollTimeInSeconds
 
         }
 
