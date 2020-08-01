@@ -3,7 +3,8 @@
 #===============================================
 Param(
     [parameter(Mandatory=$false)] [switch] $Detail = $false,
-    [parameter(Mandatory=$false)] [switch] $Diag   = $false,    
+    [parameter(Mandatory=$false)] [switch] $Diag   = $false,
+    [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Configuration = "Sampling",
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -16,11 +17,12 @@ function input_display {
     Write-Host "============================================"
     Write-Host "$g_path\$scriptName"
     Write-Host " Inputs:"
-    Write-Host "  -Detail = $Detail"
-    Write-Host "  -Diag   = $Diag"
-    Write-Host "  -DestIp = $DestIp"
-    Write-Host "  -SrcIp  = $SrcIp"
-    Write-Host "  -OutDir = $OutDir"
+    Write-Host "  -Detail        = $Detail"
+    Write-Host "  -Diag          = $Diag"
+    Write-Host "  -Configuration = $Configuration"
+    Write-Host "  -DestIp        = $DestIp"
+    Write-Host "  -SrcIp         = $SrcIp"
+    Write-Host "  -OutDir        = $OutDir"
     Write-Host "============================================"
 } # input_display()
 
@@ -80,6 +82,7 @@ function test_main {
     Param(
         [parameter(Mandatory=$false)] [switch] $Detail = $false,
         [parameter(Mandatory=$false)] [switch] $Diag   = $false,
+        [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Configuration = "Sampling",
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -95,6 +98,7 @@ function test_main {
 
     [bool]   $g_detail = $Detail
     [bool]   $g_diag   = $Diag
+    [string] $g_config = $Configuration
     [string] $g_DestIp = $DestIp
     [string] $g_SrcIp  = $SrcIp
 
@@ -108,7 +112,7 @@ function test_main {
         .\diag\Network.Diagnosis.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir
     }else {
         .\latte\latte.TESTGEN.ps1   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail
-        .\ntttcp\ntttcp.TESTGEN.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail
+        .\ntttcp\ntttcp.TESTGEN.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Configuration $g_config -Detail:$g_detail
     }
 } test_main @PSBoundParameters # Entry Point
 
