@@ -51,16 +51,23 @@ function test_send {
         [parameter(Mandatory=$true)]   [String] $Snd,
         [parameter(Mandatory=$false)]  [String] $Options,
         [parameter(Mandatory=$true)]   [String] $OutDir,
-        [parameter(Mandatory=$true)]   [String] $Fname
+        [parameter(Mandatory=$true)]   [String] $Fname,
+        [parameter(Mandatory=$false)]  [bool]   $NoDumpParam = $false
     )
 
-    [int] $sport    = 50000
-    [int] $msgbytes = 4
-    [int] $rangeus  = 10
-    [int] $rangemax = 98
+    [int] $sport         = 50000
+    [int] $msgbytes      = 4
+    [int] $rangeus       = 10
+    [int] $rangemax      = 98
 
-    [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "latte.exe -sa -c -a $g_DestIp" + ":"  + "$sport $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -so -dump $out.data.txt > $out.txt"
+    [string] $out        = (Join-Path -Path $OutDir -ChildPath "$Fname")
+    [string] $dumpOption = "-dump $out.data.txt"
+
+    if ($NoDumpParam) {
+        $dumpOption = ""
+    }
+
+    [string] $cmd        = "latte.exe -sa -c -a $g_DestIp" + ":"  + "$sport $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -so $dumpOption > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Host   $cmd 
 } # test_send()
@@ -121,12 +128,12 @@ function test_latte_generate {
         foreach ($sec in $secs) {
             foreach ($snd in $snds) {
                 # Default
-                test_send -Iter "-t $sec" -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.t$sec.$snd"
+                test_send -Iter "-t $sec" -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.t$sec.$snd" -NoDumpParam $true
                 test_recv
                 Write-Host " "
 
                 # Optimized
-                test_send -Iter "-t $sec" -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.t$sec.$snd.OPT"
+                test_send -Iter "-t $sec" -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.t$sec.$snd.OPT" -NoDumpParam $true
                 test_recv
                 Write-Host " "
             }
