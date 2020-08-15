@@ -3,6 +3,7 @@
 #===============================================
 Param(
     [parameter(Mandatory=$false)] [switch] $Detail = $false,
+    [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -15,10 +16,11 @@ function input_display {
     Write-Host "============================================"
     Write-Host "$g_path\$scriptName"
     Write-Host " Inputs:"
-    Write-Host "  -Detail = $Detail"
-    Write-Host "  -DestIp = $DestIp"
-    Write-Host "  -SrcIp  = $SrcIp"
-    Write-Host "  -OutDir = $OutDir"
+    Write-Host "  -Detail     = $Detail"
+    Write-Host "  -Iterations = $Detail"
+    Write-Host "  -DestIp     = $DestIp"
+    Write-Host "  -SrcIp      = $SrcIp"
+    Write-Host "  -OutDir     = $OutDir"
     Write-Host "============================================"
 } # input_display()
 
@@ -38,6 +40,7 @@ function banner {
 
 function test_recv {
     [string] $cmd = "latte.exe -ga"
+    Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
     Write-Host   $cmd 
 } # test_recv()
@@ -47,6 +50,7 @@ function test_send {
     Param(
         [parameter(Mandatory=$false)]  [string] $Iter,
         [parameter(Mandatory=$false)]  [int]    $Secs,
+        [parameter(Mandatory=$true)]   [int]    $Port,
         [parameter(Mandatory=$true)]   [String] $Type,
         [parameter(Mandatory=$true)]   [String] $Snd,
         [parameter(Mandatory=$false)]  [String] $Options,
@@ -54,13 +58,13 @@ function test_send {
         [parameter(Mandatory=$true)]   [String] $Fname
     )
 
-    [int] $sport    = 50000
     [int] $msgbytes = 4
     [int] $rangeus  = 10
     [int] $rangemax = 98
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "latte.exe -sa -c -a $g_DestIp" + ":"  + "$sport $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -so -dump $out.data.txt > $out.txt"
+    [string] $cmd = "latte.exe -sa -c -a $g_DestIp" + ":"  + "$Port $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -so -dump $out.data.txt > $out.txt"
+    Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Host   $cmd 
 } # test_send()
@@ -97,16 +101,19 @@ function test_latte_generate {
 
         banner -Msg "Iteration Tests: [$soc] operations per bounded iterations"
         foreach ($iter in $iters) {
+            [int] $tmp = 50000
             foreach ($snd in $snds) {
-                # Default
-                test_send -Iter "-i $iter" -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.i$iter.$snd"
-                test_recv
-                Write-Host " "
+                for ($i=0; $i -lt $g_iters; $i++) {
+                    # Default
+                    test_send -Iter "-i $iter" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.i$iter.$snd.iter$i"
+                    test_recv
+                    Write-Host " "
 
-                #optimized
-                test_send -Iter "-i $iter" -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.i$iter.$snd.OPT"
-                test_recv
-                Write-Host " "
+                    #optimized
+                    test_send -Iter "-i $iter" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.i$iter.$snd.OPT.iter$i"
+                    test_recv
+                    Write-Host " "
+                }
             }
         }
 
@@ -119,18 +126,21 @@ function test_latte_generate {
 
         banner -Msg "Time Tests: [$soc] operations per bounded time"
         foreach ($sec in $secs) {
+            [int] $tmp = 50000
             foreach ($snd in $snds) {
-                # Default
-                test_send -Iter "-t $sec" -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.t$sec.$snd"
-                test_recv
-                Write-Host " "
+                for ($i=0; $i -lt $g_iters; $i++) {
+                    # Default
+                    test_send -Iter "-t $sec" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.t$sec.$snd.iter$i"
+                    test_recv
+                    Write-Host " "
 
-                # Optimized
-                test_send -Iter "-t $sec" -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.t$sec.$snd.OPT"
-                test_recv
-                Write-Host " "
+                    # Optimized
+                    test_send -Iter "-t $sec" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.t$sec.$snd.OPT.iter$i"
+                    test_recv
+                    Write-Host " "
+                }
             }
-        }
+        }       
     }
 } # test_latte_generate()
 
@@ -140,16 +150,19 @@ function test_latte_generate {
 function test_main {
     Param(
         [parameter(Mandatory=$false)] [switch] $Detail = $false,
+        [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
     )
     input_display
     
+    [int]    $g_iters   = $Iterations
     [bool]   $g_detail  = $Detail
     [string] $g_DestIp  = $DestIp.Trim()
     [string] $g_SrcIp   = $SrcIp.Trim()
     [string] $dir       = (Join-Path -Path $OutDir -ChildPath "latte") 
+    [string] $g_log     = "$dir\LATTE.Commands.txt"
     [string] $g_logSend = "$dir\LATTE.Commands.Send.txt"
     [string] $g_logRecv = "$dir\LATTE.Commands.Recv.txt" 
 

@@ -4,6 +4,7 @@
 Param(
     [parameter(Mandatory=$false)] [switch] $Detail = $false,
     [parameter(Mandatory=$false)] [switch] $Diag   = $false,    
+    [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -16,11 +17,12 @@ function input_display {
     Write-Host "============================================"
     Write-Host "$g_path\$scriptName"
     Write-Host " Inputs:"
-    Write-Host "  -Detail = $Detail"
-    Write-Host "  -Diag   = $Diag"
-    Write-Host "  -DestIp = $DestIp"
-    Write-Host "  -SrcIp  = $SrcIp"
-    Write-Host "  -OutDir = $OutDir"
+    Write-Host "  -Detail     = $Detail"
+    Write-Host "  -Diag       = $Diag"
+    Write-Host "  -Iterations = $Iterations"
+    Write-Host "  -DestIp     = $DestIp"
+    Write-Host "  -SrcIp      = $SrcIp"
+    Write-Host "  -OutDir     = $OutDir"
     Write-Host "============================================"
 } # input_display()
 
@@ -78,8 +80,9 @@ function env_destroy {
 #===============================================
 function test_main {
     Param(
-        [parameter(Mandatory=$false)] [switch] $Detail = $false,
-        [parameter(Mandatory=$false)] [switch] $Diag   = $false,
+        [parameter(Mandatory=$false)] [switch] $Detail     = $false,
+        [parameter(Mandatory=$false)] [switch] $Diag       = $false,
+        [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -88,15 +91,16 @@ function test_main {
     input_display
 
     $start   = Get-Date
-    $version = "2019.04.03.0" # Version within date context
+    $version = "2020.08.14.0" # Version within date context
 
     Write-Host $start
     Write-Host $version
 
-    [bool]   $g_detail = $Detail
-    [bool]   $g_diag   = $Diag
-    [string] $g_DestIp = $DestIp
-    [string] $g_SrcIp  = $SrcIp
+    [int]    $g_iters     = $Iterations
+    [bool]   $g_detail    = $Detail
+    [bool]   $g_diag      = $Diag
+    [string] $g_DestIp    = $DestIp
+    [string] $g_SrcIp     = $SrcIp
 
     $workDir = env_normalize -OutDir $OutDir
     Write-Host $workDir
@@ -104,11 +108,13 @@ function test_main {
     env_destroy -OutDir $workDir
     env_create  -OutDir $workDir
 
+
     if ($g_diag) {
-        .\diag\Network.Diagnosis.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir
+        # More work needed here.  Specifically to generate the commands to file and integrate with execution.
+        #.\diag\Network.Diagnosis.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir
     }else {
-        .\latte\latte.TESTGEN.ps1   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail
-        .\ntttcp\ntttcp.TESTGEN.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail
+        .\latte\latte.TESTGEN.ps1   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail -Iterations $g_iters
+        .\ntttcp\ntttcp.TESTGEN.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail -Iterations $g_iters
     }
 } test_main @PSBoundParameters # Entry Point
 

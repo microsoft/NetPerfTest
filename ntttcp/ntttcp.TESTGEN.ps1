@@ -3,6 +3,7 @@
 #===============================================
 Param(
     [parameter(Mandatory=$false)] [switch] $Detail = $false,
+    [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -15,10 +16,11 @@ function input_display {
     Write-Host "============================================"
     Write-Host "$g_path\$scriptName"
     Write-Host " Inputs:"
-    Write-Host "  -Detail = $Detail"
-    Write-Host "  -DestIp = $DestIp"
-    Write-Host "  -SrcIp  = $SrcIp"
-    Write-Host "  -OutDir = $OutDir"
+    Write-Host "  -Detail     = $Detail"
+    Write-Host "  -Iterations = $Iterations"
+    Write-Host "  -DestIp     = $DestIp"
+    Write-Host "  -SrcIp      = $SrcIp"
+    Write-Host "  -OutDir     = $OutDir"
     Write-Host "============================================"
 } # input_display()
 
@@ -29,30 +31,33 @@ function test_recv {
     [CmdletBinding()]
     Param(
         [parameter(Mandatory=$true)]   [Int]    $Conn,
+        [parameter(Mandatory=$true)]   [Int]    $Port,
         [parameter(Mandatory=$false)]  [string] $Proto,
         [parameter(Mandatory=$true)]   [String] $OutDir,
         [parameter(Mandatory=$true)]   [String] $Fname
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ntttcp.exe -r -m $Conn,*,$g_DestIp $proto -v -wu $g_ptime -cd $g_ptime -sp -p 50001 -t $g_runtime -xml $out.xml"
+    [string] $cmd = "ntttcp.exe -r -m $Conn,*,$g_DestIp $proto -v -wu $g_ptime -cd $g_ptime -sp -p $Port -t $g_runtime -xml $out.xml"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
     Write-Host   $cmd 
+
 } # test_recv()
 
 function test_send {
     [CmdletBinding()]
     Param(
         [parameter(Mandatory=$true)]   [Int]    $Conn,
+        [parameter(Mandatory=$true)]   [Int]    $Port,
         [parameter(Mandatory=$false)]  [string] $Proto,
         [parameter(Mandatory=$true)]   [String] $OutDir,
         [parameter(Mandatory=$true)]   [String] $Fname
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ntttcp.exe -s -m $Conn,*,$g_DestIp $proto -v -wu $g_ptime -cd $g_ptime -sp -p 50001 -t $g_runtime -xml $out.xml -nic $g_SrcIp"
+    [string] $cmd = "ntttcp.exe -s -m $Conn,*,$g_DestIp $proto -v -wu $g_ptime -cd $g_ptime -sp -p $Port -t $g_runtime -xml $out.xml -nic $g_SrcIp"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend    
@@ -65,10 +70,13 @@ function test_udp {
         [parameter(Mandatory=$true)] [String] $OutDir,
         [parameter(Mandatory=$true)] [Int]    $Conn
     )
-
+    
+    [int]    $tmp    = 50000
     [string] $udpstr = "-u"
-    test_recv -Conn $Conn -Proto $udpstr -OutDir $OutDir -Fname "udp.recv.m$Conn"
-    test_send -Conn $Conn -Proto $udpstr -OutDir $OutDir -Fname "udp.send.m$Conn"
+    for ($i=0; $i -lt $g_iters; $i++) {
+        test_recv -Conn $Conn -Port ($tmp+$i) -Proto $udpstr -OutDir $OutDir -Fname "udp.recv.m$Conn.iter$i"
+        test_send -Conn $Conn -Port ($tmp+$i) -Proto $udpstr -OutDir $OutDir -Fname "udp.send.m$Conn.iter$i"
+    }
 } # test_udp()
 
 function test_tcp {
@@ -89,8 +97,11 @@ function test_tcp {
 
     foreach ($Oio in $OutIoList) {
         [string] $tcpstr = "-a $Oio -w"
-        test_recv -Conn $Conn -Proto $tcpstr -OutDir $OutDir -Fname "tcp.recv.m$Conn.a$Oio"
-        test_send -Conn $Conn -Proto $tcpstr -OutDir $OutDir -Fname "tcp.send.m$Conn.a$Oio"
+        [int]    $tmp    = 50000
+        for ($i=0; $i -lt $g_iters; $i++) {
+            test_recv -Conn $Conn -Port ($tmp+$i) -Proto $tcpstr -OutDir $OutDir -Fname "tcp.recv.m$Conn.a$Oio.iter$i"
+            test_send -Conn $Conn -Port ($tmp+$i) -Proto $tcpstr -OutDir $OutDir -Fname "tcp.send.m$Conn.a$Oio.iter$i"
+        }
         Write-Host " "
     }
 } # test_tcp()
@@ -148,12 +159,14 @@ function test_ntttcp {
 function test_main {
     Param(
         [parameter(Mandatory=$false)] [switch] $Detail = $false,
+        [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
     )
     input_display
 
+    [int]    $g_iters   = $Iterations
     [bool]   $g_detail  = $Detail
     [string] $g_DestIp  = $DestIp.Trim()
     [string] $g_SrcIp   = $SrcIp.Trim()
