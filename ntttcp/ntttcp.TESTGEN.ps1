@@ -128,10 +128,10 @@ function test_ntttcp {
     [int] $g_ptime   = 2
 
     # NTTTCP ^2 connection scaling to MAX supported.
-    [int]   $ConnMax  = 128 # NTTTCP maximum connections is 999.
+    [int]   $ConnMax  = 512 # NTTTCP maximum connections is 999.
     [int[]] $ConnList = @(1, 64)
     if ($g_detail) {
-        $ConnList = @(1, 2, 4, 8, 16, 32, 64, $ConnMax)
+        $ConnList = @(1, 2, 4, 8, 16, 32, 64, 128, 256, $ConnMax)
     }
 
     [string] $dir = $OutDir
