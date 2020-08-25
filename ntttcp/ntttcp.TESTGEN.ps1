@@ -4,6 +4,7 @@
 Param(
     [parameter(Mandatory=$false)] [switch] $Detail = $false,
     [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
+    [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Config = "Sampling",
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -18,6 +19,7 @@ function input_display {
     Write-Host " Inputs:"
     Write-Host "  -Detail     = $Detail"
     Write-Host "  -Iterations = $Iterations"
+    Write-Host "  -Config     = $Config"
     Write-Host "  -DestIp     = $DestIp"
     Write-Host "  -SrcIp      = $SrcIp"
     Write-Host "  -OutDir     = $OutDir"
@@ -120,12 +122,24 @@ function banner {
 function test_ntttcp {
     [CmdletBinding()]
     Param(
-        [parameter(Mandatory=$true)] [String] $OutDir
+        [parameter(Mandatory=$true)] [String] $OutDir,
+        [parameter(Mandatory=$true)] [ValidateScript({Test-Path $_})] [String] $ConfigFile
     )
 
+    #Load the variables needed to generate the commands
     # execution time in seconds
     [int] $g_runtime = 10
     [int] $g_ptime   = 2
+
+    # execution time ($g_runtime) in seconds, wu, cd times ($g_ptime) will come from the Config ps1 file, if specified and take precedence over defaults 
+    Try
+    {
+        . .\$ConfigFile
+    }
+    Catch
+    {
+        Write-Host "$ConfigFile will not be used. Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
+    }
 
     # NTTTCP ^2 connection scaling to MAX supported.
     [int]   $ConnMax  = 512 # NTTTCP maximum connections is 999.
@@ -160,24 +174,28 @@ function test_main {
     Param(
         [parameter(Mandatory=$false)] [switch] $Detail = $false,
         [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
+        [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Config = "Sampling",
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
     )
     input_display
 
-    [int]    $g_iters   = $Iterations
-    [bool]   $g_detail  = $Detail
-    [string] $g_DestIp  = $DestIp.Trim()
-    [string] $g_SrcIp   = $SrcIp.Trim()
-    [string] $dir       = (Join-Path -Path $OutDir -ChildPath "ntttcp") 
-    [string] $g_log     = "$dir\NTTTCP.Commands.txt"
-    [string] $g_logSend = "$dir\NTTTCP.Commands.Send.txt"
-    [string] $g_logRecv = "$dir\NTTTCP.Commands.Recv.txt"
+    [int]    $g_iters      = $Iterations
+    [bool]   $g_detail     = $Detail
+    [string] $g_DestIp     = $DestIp.Trim()
+    [string] $g_SrcIp      = $SrcIp.Trim()
+    [string] $dir          = (Join-Path -Path $OutDir -ChildPath "ntttcp") 
+    [string] $g_log        = "$dir\NTTTCP.Commands.txt"
+    [string] $g_logSend    = "$dir\NTTTCP.Commands.Send.txt"
+    [string] $g_logRecv    = "$dir\NTTTCP.Commands.Recv.txt"
+    [string] $g_ConfigFile = ".\ntttcp\NTTTCP.$Config.Config.ps1"
 
     # Edit spaces in path for Invoke-Expression compatibility
     $dir = $dir -replace ' ','` '
     
     New-Item -ItemType directory -Path $dir | Out-Null
-    test_ntttcp -OutDir $dir
+    Write-Host "test_ntttcp -OutDir $dir -ConfigFile $g_ConfigFile"
+
+    test_ntttcp -OutDir $dir -ConfigFile $g_ConfigFile
 } test_main @PSBoundParameters # Entry Point

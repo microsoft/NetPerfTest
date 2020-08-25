@@ -3,8 +3,9 @@
 #===============================================
 Param(
     [parameter(Mandatory=$false)] [switch] $Detail = $false,
-    [parameter(Mandatory=$false)] [switch] $Diag   = $false,    
+    [parameter(Mandatory=$false)] [switch] $Diag   = $false,
     [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
+    [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Config = "Sampling",
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -20,6 +21,7 @@ function input_display {
     Write-Host "  -Detail     = $Detail"
     Write-Host "  -Diag       = $Diag"
     Write-Host "  -Iterations = $Iterations"
+    Write-Host "  -Config     = $Config"
     Write-Host "  -DestIp     = $DestIp"
     Write-Host "  -SrcIp      = $SrcIp"
     Write-Host "  -OutDir     = $OutDir"
@@ -83,6 +85,7 @@ function test_main {
         [parameter(Mandatory=$false)] [switch] $Detail     = $false,
         [parameter(Mandatory=$false)] [switch] $Diag       = $false,
         [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
+        [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Config = "Sampling",
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -91,7 +94,7 @@ function test_main {
     input_display
 
     $start   = Get-Date
-    $version = "2020.08.14.0" # Version within date context
+    $version = "2020.08.16.0" # Version within date context
 
     Write-Host $start
     Write-Host $version
@@ -99,6 +102,7 @@ function test_main {
     [int]    $g_iters     = $Iterations
     [bool]   $g_detail    = $Detail
     [bool]   $g_diag      = $Diag
+    [string] $g_config    = $Config
     [string] $g_DestIp    = $DestIp
     [string] $g_SrcIp     = $SrcIp
 
@@ -114,7 +118,7 @@ function test_main {
         #.\diag\Network.Diagnosis.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir
     }else {
         .\latte\latte.TESTGEN.ps1   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail -Iterations $g_iters
-        .\ntttcp\ntttcp.TESTGEN.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail -Iterations $g_iters
+        .\ntttcp\ntttcp.TESTGEN.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail -Iterations $g_iters -Config $g_config
     }
 } test_main @PSBoundParameters # Entry Point
 
