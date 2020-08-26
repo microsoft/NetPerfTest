@@ -111,13 +111,15 @@ function test_latte_generate {
             [int] $tmp = 50000
             foreach ($snd in $snds) {
                 for ($i=0; $i -lt $g_iters; $i++) {
+                    [int] $portstart = $tmp + ($i * $g_iters)
+
                     # Default
                     #test_send -Iter "-i $iter" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.i$iter.$snd.iter$i"
                     #test_recv
                     #Write-Host " "
 
                     #optimized
-                    test_send -Iter "-i $iter" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.i$iter.$snd.OPT.iter$i"
+                    test_send -Iter "-i $iter" -Port $portstart -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.i$iter.$snd.OPT.iter$i"
                     test_recv
                     Write-Host " "
                 }
@@ -136,13 +138,15 @@ function test_latte_generate {
             [int] $tmp = 50000
             foreach ($snd in $snds) {
                 for ($i=0; $i -lt $g_iters; $i++) {
+                    [int] $portstart = $tmp + ($i * $g_iters)
+
                     # Default
                     #test_send -Iter "-t $sec" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.t$sec.$snd.iter$i" -NoDumpParam $true
                     #test_recv
                     #Write-Host " "
 
                     # Optimized
-                    test_send -Iter "-t $sec" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.t$sec.$snd.OPT.iter$i" -NoDumpParam $true
+                    test_send -Iter "-t $sec" -Port $portstart -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.t$sec.$snd.OPT.iter$i" -NoDumpParam $true
                     test_recv
                     Write-Host " "
                 }

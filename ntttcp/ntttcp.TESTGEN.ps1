@@ -76,8 +76,9 @@ function test_udp {
     [int]    $tmp    = 50000
     [string] $udpstr = "-u"
     for ($i=0; $i -lt $g_iters; $i++) {
-        test_recv -Conn $Conn -Port ($tmp+$i) -Proto $udpstr -OutDir $OutDir -Fname "udp.recv.m$Conn.iter$i"
-        test_send -Conn $Conn -Port ($tmp+$i) -Proto $udpstr -OutDir $OutDir -Fname "udp.send.m$Conn.iter$i"
+        [int] $portstart = $tmp + ($i * $g_iters)
+        test_recv -Conn $Conn -Port $portstart -Proto $udpstr -OutDir $OutDir -Fname "udp.recv.m$Conn.iter$i"
+        test_send -Conn $Conn -Port $portstart -Proto $udpstr -OutDir $OutDir -Fname "udp.send.m$Conn.iter$i"
     }
 } # test_udp()
 
@@ -101,8 +102,9 @@ function test_tcp {
         [string] $tcpstr = "-a $Oio -w"
         [int]    $tmp    = 50000
         for ($i=0; $i -lt $g_iters; $i++) {
-            test_recv -Conn $Conn -Port ($tmp+$i) -Proto $tcpstr -OutDir $OutDir -Fname "tcp.recv.m$Conn.a$Oio.iter$i"
-            test_send -Conn $Conn -Port ($tmp+$i) -Proto $tcpstr -OutDir $OutDir -Fname "tcp.send.m$Conn.a$Oio.iter$i"
+            [int] $portstart = $tmp + ($i * $g_iters)
+            test_recv -Conn $Conn -Port $portstart -Proto $tcpstr -OutDir $OutDir -Fname "tcp.recv.m$Conn.a$Oio.iter$i"
+            test_send -Conn $Conn -Port $portstart -Proto $tcpstr -OutDir $OutDir -Fname "tcp.send.m$Conn.a$Oio.iter$i"
         }
         Write-Host " "
     }
