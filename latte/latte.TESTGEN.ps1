@@ -55,15 +55,22 @@ function test_send {
         [parameter(Mandatory=$true)]   [String] $Snd,
         [parameter(Mandatory=$false)]  [String] $Options,
         [parameter(Mandatory=$true)]   [String] $OutDir,
-        [parameter(Mandatory=$true)]   [String] $Fname
+        [parameter(Mandatory=$true)]   [String] $Fname,
+        [parameter(Mandatory=$false)]  [bool]   $NoDumpParam = $false
     )
 
-    [int] $msgbytes = 4
+    #[int] $msgbytes = 4  #Latte default is 4B, no immediate need to specify.
     [int] $rangeus  = 10
     [int] $rangemax = 98
 
-    [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "latte.exe -sa -c -a $g_DestIp" + ":"  + "$Port $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -so -dump $out.data.txt > $out.txt"
+    [string] $out        = (Join-Path -Path $OutDir -ChildPath "$Fname")
+    [string] $dumpOption = "-dump $out.data.txt"
+
+    if ($NoDumpParam) {
+        $dumpOption = ""
+    }
+
+    [string] $cmd = "latte.exe -sa -c -a $g_DestIp" + ":"  + "$Port $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -so $dumpOption > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Host   $cmd 
@@ -130,12 +137,12 @@ function test_latte_generate {
             foreach ($snd in $snds) {
                 for ($i=0; $i -lt $g_iters; $i++) {
                     # Default
-                    #test_send -Iter "-t $sec" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.t$sec.$snd.iter$i"
+                    #test_send -Iter "-t $sec" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.t$sec.$snd.iter$i" -NoDumpParam $true
                     #test_recv
                     #Write-Host " "
 
                     # Optimized
-                    test_send -Iter "-t $sec" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.t$sec.$snd.OPT.iter$i"
+                    test_send -Iter "-t $sec" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.t$sec.$snd.OPT.iter$i" -NoDumpParam $true
                     test_recv
                     Write-Host " "
                 }
