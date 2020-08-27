@@ -94,64 +94,44 @@ function test_latte_generate {
 
     # Transports
     [string []] $soctypes = @('tcp', 'udp')
-    if ($g_detail) {
-        $soctypes = @('raw', 'tcp', 'udp')
-    }
 
     foreach ($soc in $soctypes) {
-        # Iteration Tests
+        # Iteration Tests capturing each transaction time
         # - Measures over input samples
-        [int []] $iters = @(10000)
-        if ($g_detail) { 
-            $iters = @(10000, 1000000) 
-        }    
-
         banner -Msg "Iteration Tests: [$soc] operations per bounded iterations"
-        foreach ($iter in $iters) {
-            [int] $tmp = 50000
-            foreach ($snd in $snds) {
-                for ($i=0; $i -lt $g_iters; $i++) {
-                    [int] $portstart = $tmp + ($i * $g_iters)
+        [int] $tmp  = 50000
+        [int] $iter = 10000 # When "-i" is used, latte limits iterations to 1-10000 range.
+        foreach ($snd in $snds) {
+            for ($i=0; $i -lt $g_iters; $i++) {
+                [int] $portstart = $tmp + ($i * $g_iters)
+                # Default
+                #test_send -Iter "-i $iter" -Port $portstart -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.i$iter.$snd.iter$i"
+                #test_recv
 
-                    # Default
-                    #test_send -Iter "-i $iter" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.i$iter.$snd.iter$i"
-                    #test_recv
-                    #Write-Host " "
-
-                    #optimized
-                    test_send -Iter "-i $iter" -Port $portstart -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.i$iter.$snd.OPT.iter$i"
-                    test_recv
-                    Write-Host " "
-                }
+                #optimized
+                test_send -Iter "-i $iter" -Port $portstart -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.i$iter.$snd.OPT.iter$i"
+                test_recv
             }
         }
 
-        # Transaction Tests
+        # Transactions per 10s
         # - Measures operations per bounded time.
-        [int []] $secs = @(10)
-        if ($g_detail) { 
-            $secs = @(10, 60) 
-        }   
-
         banner -Msg "Time Tests: [$soc] operations per bounded time"
-        foreach ($sec in $secs) {
-            [int] $tmp = 50000
-            foreach ($snd in $snds) {
-                for ($i=0; $i -lt $g_iters; $i++) {
-                    [int] $portstart = $tmp + ($i * $g_iters)
+        #foreach ($sec in $secs) {
+        [int] $tmp = 50000
+        [int] $sec = 10
+        foreach ($snd in $snds) {
+            for ($i=0; $i -lt $g_iters; $i++) {
+                [int] $portstart = $tmp + ($i * $g_iters)
+                # Default
+                #test_send -Iter "-t $sec" -Port $portstart -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.t$sec.$snd.iter$i" -NoDumpParam $true
+                #test_recv
 
-                    # Default
-                    #test_send -Iter "-t $sec" -Port ($tmp+$i) -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.t$sec.$snd.iter$i" -NoDumpParam $true
-                    #test_recv
-                    #Write-Host " "
-
-                    # Optimized
-                    test_send -Iter "-t $sec" -Port $portstart -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.t$sec.$snd.OPT.iter$i" -NoDumpParam $true
-                    test_recv
-                    Write-Host " "
-                }
+                # Optimized
+                test_send -Iter "-t $sec" -Port $portstart -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.t$sec.$snd.OPT.iter$i" -NoDumpParam $true
+                test_recv
             }
-        }       
+        }
     }
 } # test_latte_generate()
 
