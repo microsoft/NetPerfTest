@@ -74,11 +74,12 @@ function test_udp {
     )
     
     [int]    $tmp    = 50000
-    [string] $udpstr = "-u -l 1472"
+    [int]    $BufLen = 1472
+    [string] $udpstr = "-u -l $BufLen"
     for ($i=0; $i -lt $g_iters; $i++) {
         [int] $portstart = $tmp + ($i * $g_iters)
-        test_recv -Conn $Conn -Port $portstart -Proto $udpstr -OutDir $OutDir -Fname "udp.recv.m$Conn.iter$i"
-        test_send -Conn $Conn -Port $portstart -Proto $udpstr -OutDir $OutDir -Fname "udp.send.m$Conn.iter$i"
+        test_recv -Conn $Conn -Port $portstart -Proto $udpstr -OutDir $OutDir -Fname "udp.recv.m$Conn.l$BufLen.iter$i"
+        test_send -Conn $Conn -Port $portstart -Proto $udpstr -OutDir $OutDir -Fname "udp.send.m$Conn.l$BufLen.iter$i"
     }
 } # test_udp()
 
@@ -91,22 +92,24 @@ function test_tcp {
 
     # NTTTCP outstanding IO ^2 scaling. Min -> Default (2) -> MAX supported.
     # - Finds optimial outstanding IO scaling value per BW
-    [int]   $OutIoDflt = 2
-    [int]   $OutIoMax  = 63    
-    [int[]] $OutIoList = @($OutIoDflt, 16)
+    [int[]] $OutIoList  = @(2, 16) #default is 2, see ntttcp -help
+    [int[]] $BufLenList = @(64)    #default is 64K, see ntttcp -help
     if ($g_detail) {
-        $OutIoList  = @(1, 2, 4, 8, 16, 32, $OutIoMax)
+        $OutIoList  = @(2, 4, 8, 16, 32, 63) # max is 63, see ntttcp -help
+        $BufLenList = @(4, 64, 256)          # Azure requested values
     }
 
-    foreach ($Oio in $OutIoList) {
-        [string] $tcpstr = "-a $Oio -w"
-        [int]    $tmp    = 50000
-        for ($i=0; $i -lt $g_iters; $i++) {
-            [int] $portstart = $tmp + ($i * $g_iters)
-            test_recv -Conn $Conn -Port $portstart -Proto $tcpstr -OutDir $OutDir -Fname "tcp.recv.m$Conn.a$Oio.iter$i"
-            test_send -Conn $Conn -Port $portstart -Proto $tcpstr -OutDir $OutDir -Fname "tcp.send.m$Conn.a$Oio.iter$i"
+    foreach ($BufLen in $BufLenList) {
+        foreach ($Oio in $OutIoList) {
+            [string] $tcpstr = "-a $Oio -w -l $BufLen"
+            [int]    $tmp    = 50000
+            for ($i=0; $i -lt $g_iters; $i++) {
+                [int] $portstart = $tmp + ($i * $g_iters)
+                test_recv -Conn $Conn -Port $portstart -Proto $tcpstr -OutDir $OutDir -Fname "tcp.recv.m$Conn.l$BufLen.a$Oio.iter$i"
+                test_send -Conn $Conn -Port $portstart -Proto $tcpstr -OutDir $OutDir -Fname "tcp.send.m$Conn.l$BufLen.a$Oio.iter$i"
+            }
+            Write-Host " "
         }
-        Write-Host " "
     }
 } # test_tcp()
 
