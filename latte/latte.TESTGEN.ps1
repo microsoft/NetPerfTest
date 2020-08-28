@@ -94,8 +94,10 @@ function test_latte_generate {
 
     # Transports
     [string []] $soctypes = @('tcp', 'udp')
-
     foreach ($soc in $soctypes) {
+        $dirDefault   = (Join-Path -Path $OutDir -ChildPath "default") 
+        $dirOptimized = (Join-Path -Path $OutDir -ChildPath "optimized") 
+
         # Iteration Tests capturing each transaction time
         # - Measures over input samples
         banner -Msg "Iteration Tests: [$soc] operations per bounded iterations"
@@ -104,32 +106,35 @@ function test_latte_generate {
         foreach ($snd in $snds) {
             for ($i=0; $i -lt $g_iters; $i++) {
                 [int] $portstart = $tmp + ($i * $g_iters)
-                # Default
-                #test_send -Iter "-i $iter" -Port $portstart -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.i$iter.$snd.iter$i"
-                #test_recv
-
                 #optimized
-                test_send -Iter "-i $iter" -Port $portstart -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.i$iter.$snd.OPT.iter$i"
+                test_send -Iter "-i $iter" -Port $portstart -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dirOptimized -Fname "$soc.i$iter.$snd.OPT.iter$i"
                 test_recv
+
+                if ($g_detail) {
+                    # Default
+                    test_send -Iter "-i $iter" -Port $portstart -Type "-$soc" -Snd $snd -OutDir $dirDefault -Fname "$soc.i$iter.$snd.iter$i"
+                    test_recv
+                }
             }
         }
 
         # Transactions per 10s
         # - Measures operations per bounded time.
         banner -Msg "Time Tests: [$soc] operations per bounded time"
-        #foreach ($sec in $secs) {
         [int] $tmp = 50000
         [int] $sec = 10
         foreach ($snd in $snds) {
             for ($i=0; $i -lt $g_iters; $i++) {
                 [int] $portstart = $tmp + ($i * $g_iters)
-                # Default
-                #test_send -Iter "-t $sec" -Port $portstart -Type "-$soc" -Snd $snd -OutDir $dir -Fname "$soc.t$sec.$snd.iter$i" -NoDumpParam $true
-                #test_recv
-
                 # Optimized
-                test_send -Iter "-t $sec" -Port $portstart -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dir -Fname "$soc.t$sec.$snd.OPT.iter$i" -NoDumpParam $true
+                test_send -Iter "-t $sec" -Port $portstart -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dirOptimized -Fname "$soc.t$sec.$snd.OPT.iter$i" -NoDumpParam $true
                 test_recv
+
+                if ($g_detail) {
+                    # Default
+                    test_send -Iter "-t $sec" -Port $portstart -Type "-$soc" -Snd $snd -OutDir $dirDefault -Fname "$soc.t$sec.$snd.iter$i" -NoDumpParam $true
+                    test_recv
+                }
             }
         }
     }
