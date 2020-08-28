@@ -74,7 +74,7 @@ function test_udp {
     )
     
     [int]    $tmp    = 50000
-    [string] $udpstr = "-u"
+    [string] $udpstr = "-u -l 1472"
     for ($i=0; $i -lt $g_iters; $i++) {
         [int] $portstart = $tmp + ($i * $g_iters)
         test_recv -Conn $Conn -Port $portstart -Proto $udpstr -OutDir $OutDir -Fname "udp.recv.m$Conn.iter$i"
