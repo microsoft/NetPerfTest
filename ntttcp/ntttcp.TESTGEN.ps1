@@ -96,7 +96,7 @@ function test_tcp {
     [int[]] $BufLenList = @(64)    #default is 64K, see ntttcp -help
     if ($g_detail) {
         $OutIoList  = @(2, 4, 8, 16, 32, 63) # max is 63, see ntttcp -help
-        $BufLenList = @(4, 64, 256)          # Azure requested values
+        $BufLenList = @(4096, 65536, 262144) # Stakeholer requested values
     }
 
     foreach ($BufLen in $BufLenList) {
