@@ -93,10 +93,10 @@ function test_tcp {
     # NTTTCP outstanding IO ^2 scaling. Min -> Default (2) -> MAX supported.
     # - Finds optimial outstanding IO scaling value per BW
     [int[]] $OutIoList  = @(2, 16) #default is 2, see ntttcp -help
-    [int[]] $BufLenList = @(64)    #default is 64K, see ntttcp -help
+    [int[]] $BufLenList = @(65536)    #default is 64K, see ntttcp -help
     if ($g_detail) {
         $OutIoList  = @(2, 4, 8, 16, 32, 63) # max is 63, see ntttcp -help
-        $BufLenList = @(4096, 65536, 262144) # Stakeholer requested values
+        $BufLenList = @(4096, 65536, 262144) # Stakeholder requested values
     }
 
     foreach ($BufLen in $BufLenList) {
