@@ -1,2 +1,2 @@
- $g_runtime = 300
- $g_ptime   = 10
+ $g_runtime = 90
+ $g_ptime   = 2
