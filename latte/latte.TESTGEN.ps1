@@ -4,6 +4,7 @@
 Param(
     [parameter(Mandatory=$false)] [switch] $Detail = $false,
     [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
+    [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Config = "Sampling",
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -79,8 +80,19 @@ function test_send {
 function test_latte_generate {
     [CmdletBinding()]
     Param(
-        [parameter(Mandatory=$true)] [String] $OutDir
+        [parameter(Mandatory=$true)] [String] $OutDir,
+        [parameter(Mandatory=$true)] [ValidateScript({Test-Path $_})] [String] $ConfigFile
     )
+
+    #Load the variables needed to generate the commands
+    Try
+    {
+        . .\$ConfigFile
+    }
+    Catch
+    {
+        Write-Host "$ConfigFile will not be used. Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
+    }
 
     # Normalize output directory
     $dir = $OutDir
@@ -149,25 +161,27 @@ function test_main {
     Param(
         [parameter(Mandatory=$false)] [switch] $Detail = $false,
         [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
+        [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Config = "Sampling",
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
     )
     input_display
     
-    [int]    $g_iters   = $Iterations
-    [bool]   $g_detail  = $Detail
-    [string] $g_DestIp  = $DestIp.Trim()
-    [string] $g_SrcIp   = $SrcIp.Trim()
-    [string] $dir       = (Join-Path -Path $OutDir -ChildPath "latte") 
-    [string] $g_log     = "$dir\LATTE.Commands.txt"
-    [string] $g_logSend = "$dir\LATTE.Commands.Send.txt"
-    [string] $g_logRecv = "$dir\LATTE.Commands.Recv.txt" 
+    [int]    $g_iters      = $Iterations
+    [bool]   $g_detail     = $Detail
+    [string] $g_DestIp     = $DestIp.Trim()
+    [string] $g_SrcIp      = $SrcIp.Trim()
+    [string] $dir          = (Join-Path -Path $OutDir -ChildPath "latte") 
+    [string] $g_log        = "$dir\LATTE.Commands.txt"
+    [string] $g_logSend    = "$dir\LATTE.Commands.Send.txt"
+    [string] $g_logRecv    = "$dir\LATTE.Commands.Recv.txt" 
+    [string] $g_ConfigFile = ".\latte\LATTE.$Config.Config.ps1"
 
     New-Item -ItemType directory -Path $dir | Out-Null
     
     # Optional - Edit spaces in output path for Invoke-Expression compatibility
     # $dir  = $dir  -replace ' ','` '
 
-    test_latte_generate -OutDir $dir
+    test_latte_generate -OutDir $dir -ConfigFile $g_ConfigFile
 } test_main @PSBoundParameters # Entry Point
