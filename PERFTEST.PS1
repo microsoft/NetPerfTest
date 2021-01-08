@@ -117,7 +117,7 @@ function test_main {
         # More work needed here.  Specifically to generate the commands to file and integrate with execution.
         #.\diag\Network.Diagnosis.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir
     }else {
-        .\latte\latte.TESTGEN.ps1   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail -Iterations $g_iters
+        .\latte\latte.TESTGEN.ps1   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail -Iterations $g_iters -Config $g_config
         .\ntttcp\ntttcp.TESTGEN.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail -Iterations $g_iters -Config $g_config
     }
 } test_main @PSBoundParameters # Entry Point
