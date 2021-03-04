@@ -135,7 +135,7 @@ function test_latte_generate {
         # - Measures operations per bounded time.
         banner -Msg "Time Tests: [$soc] operations per bounded time"
         [int] $tmp = 50000
-        [int] $sec = 10
+        [int] $sec = 30
         foreach ($snd in $snds) {
             for ($i=0; $i -lt $g_iters; $i++) {
                 [int] $portstart = $tmp + ($i * $g_iters)
