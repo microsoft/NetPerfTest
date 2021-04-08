@@ -1,0 +1,61 @@
+{
+    "NtttcpDefault": {
+        "Iterations": 5,
+        "StartPort": 50000,
+        "tcp" : {
+            "BufferLen"     : [65536],
+            "Connections"   : [64],
+            "OutstandingIo" :[2, 16],
+            "Options"       : ""
+        },
+        "udp" : {
+            "BufferLen"     : [65536],
+            "Connections"   : [64],
+            "OutstandingIo" : null,
+            "Options"       : ""
+        },
+        "Warmup"   : 2,
+        "Cooldown" : 2,
+        "Time"     : 60
+    },
+
+    "NtttcpAzure": {
+        "Iterations" : 5,
+        "StartPort"  : 50000,
+        "tcp" : {
+            "BufferLen"     : [65536],
+            "Connections"   : [1, 64],
+            "OutstandingIo" :[2, 16],
+            "Options": ""
+        },
+        "udp" : {
+            "BufferLen"     : [1472],
+            "Connections"   : [1, 64],
+            "OutstandingIo" : null,
+            "Options"       : ""
+        },
+        "Warmup"   : 2,
+        "Cooldown" : 2,
+        "Time"     : 60
+    },
+
+    "NtttcpDetail": {
+        "Iterations": 5,
+        "StartPort": 50000,
+        "tcp" : {
+            "BufferLen"     : [4096, 65536, 262144],
+            "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
+            "OutstandingIo" :[2, 4, 8, 16, 32, 63],
+            "Options"       : ""
+        },
+        "udp" : {
+            "BufferLen"     : [1472],
+            "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
+            "OutstandingIo" : null,
+            "Options"       : ""
+        },
+        "Warmup"   : 2,
+        "Cooldown" : 2,
+        "Time"     : 60
+    }
+}
