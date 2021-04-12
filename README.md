@@ -16,7 +16,7 @@ Powershell.exe Set-ExecutionPolicy RemoteSigned -Force
 Now that our pre-requisites have been met, we can start the testing process. 
 First, we must generate a bunch of relevant networking tests between these machines.
 Create a folder that will hold the output of these scripts, say: C:\Temp\MyDirectoryForTesting.
-Now that the folder is created, we’re ready to generate the commands using the PERFTEST cmdlet : 
+Now that the folder is created, we're ready to generate the commands using the PERFTEST cmdlet : 
 
 ```PowerShell 
 .\PERFTEST.PS1 -DestIp DestinationMachineIP -SrcIP SourceMachineIP -OutDir "C:\Temp\MyDirectoryForTesting"
@@ -24,9 +24,16 @@ Now that the folder is created, we’re ready to generate the commands using the P
 
 Note that the PERFTEST cmdlet generate the commands under a subdirectory msdbg.CurrentMachineName.perftest
 
+The default configuration for the commands are outlined in Toolname.Config.json.
+If you would like you use a different configuration, pass in the name of the configuration. If you would like to make your own configuration, the name of the configuration must start with the toolname and can be added to the respective json file. Refer to Toolname.Config.md for more information on creating json configs.
+
+```PowerShell 
+.\PERFTEST.PS1 -DestIp DestinationMachineIP -SrcIP SourceMachineIP -OutDir "C:\Temp\MyDirectoryForTesting" -Config 'Detail'
+```
+
 ## Setup
 Before proceeding to run the commands/tests that were generated above, we must enable Powershell Remoting. 
-Don’t worry, we have a script that can do all of this for you.
+Don't worry, we have a script that can do all of this for you.
 We also have a cleanup script that we recommend you run after collecting the results (more on that below, in the Cleanup section)
 
 To setup the machine(s), please run the following command on each machine you wish to test (example: Destination and Source machine)
@@ -51,7 +58,7 @@ The command to run tests is:
 ProcessCommands -DestIp DestinationMachineIP -SrcIp SourceMachineIP -CommandsDir C:\Temp\MyDirectoryForTesting\msdbg.CurrentMachineName.perftest -SrcIpUserName SrcDomain\SrcUserName -DestIpUserName DestDomain\DestUserName
 ```
 
-You will be prompted for password for both credentials. Don’t worry, it’s a Secure-string so your password will not be displayed or stored in clear text at any point.
+You will be prompted for password for both credentials. Don't worry, it's a Secure-string so your password will not be displayed or stored in clear text at any point.
 
 ```PowerShell commands
 Import-Module -Force .\runPerftool.psm1
@@ -60,13 +67,13 @@ For further help run
 Get-Help ProcessCommands
 ```
 
-That’s it. Now sit back and wait for the script to complete. You should see the zip files from DestinationMachineIp and SourceMachineIP machines under the 
+That's it. Now sit back and wait for the script to complete. You should see the zip files from DestinationMachineIp and SourceMachineIP machines under the 
 CommandsDir folder you specified (ex: C:\Temp\MyDirectoryForTesting\msdbg.CurrentMachineName.perftest)
 
-At this point you are done! Just don’t forget to share the folder contents and please do move on to the Cleanup step below.
+At this point you are done! Just donï¿½t forget to share the folder contents and please do move on to the Cleanup step below.
 
 ## Cleanup
-Now that you’re done running the relevant tests, we recommend you run the cleanup script to undo the steps that were done in the Setup stage.
+Now that you're done running the relevant tests, we recommend you run the cleanup script to undo the steps that were done in the Setup stage.
 To cleanup the machine(s), please run the following command on each machine you leveraged for testing (Destination and Source machine)
 
 ```PowerShell 

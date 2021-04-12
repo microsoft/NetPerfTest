@@ -1,0 +1,39 @@
+{
+    "LatteDefault": 
+    {
+        "Iterations"     : 5,
+        "Protocol"       : ["tcp", "udp"],
+        "StartPort"      : 50000,
+        "Time"           : 60,
+        "PingIterations" : 10000,
+        "SendMethod"     : [ "b" ],
+        "Default"        : null,
+        "Optimized"      : "-group 0 -rio -riopoll 100000000000",
+        "Options"        : ""
+    },
+
+    "LatteAzure": 
+    {
+        "Iterations"     : 15,
+        "Protocol"       : ["tcp", "udp"],
+        "StartPort"      : 50000,
+        "Time"           : 60,
+        "PingIterations" : 10000,
+        "SendMethod"     : [ "b" ],
+        "Default"        : null,
+        "Optimized"      : "-group 0 -rio -riopoll 100000000000",
+        "Options"        : ""
+    },
+
+    "LatteDetail": {
+        "Iterations"     : 5,
+        "Protocol"       : ["tcp", "udp"],
+        "StartPort"      : 50000,
+        "Time"           : 60,
+        "PingIterations" : 20000,
+        "SendMethod"     : [ "b", "nb", "ovc", "ove", "ovp", "sel" ],
+        "Default"        : "",
+        "Optimized"      : "-group 0 -rio -riopoll 100000000000",
+        "Options"        : ""
+    }
+}
