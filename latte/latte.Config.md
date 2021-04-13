@@ -3,7 +3,7 @@ Any optional variables will be omitted
 ```
     "Latte**ConfigName**": { # Name of config must start with Latte
         "Iterations"     : **Int: Number of command iterations**,
-        "Protocol"       : **Array: List of Protocols**,
+        "Protocol"       : **Array: List of Protocols - tcp | udp | raw**,
         "StartPort"      : **Int: Starting Server Port Number**,
         "Time"           : **Int: Test Duration**, # set to 0 to omit
         "PingIterations" : **Int: Ping Iteration**, # set to 0 to omit

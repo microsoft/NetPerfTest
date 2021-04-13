@@ -136,6 +136,32 @@ function test_latte_generate {
     }
 } # test_latte_generate()
 
+function validate_config {
+    $isValid = $true
+    $int_vars = @('Iterations', 'StartPort', 'Time', 'PingIterations')
+    foreach ($var in $int_vars) {
+        if (($null -eq $g_Config.($var)) -or ($g_Config.($var) -lt 0)) {
+            Write-Host "$var is required and must be greater than or equal to 0"
+            $isValid = $false
+        }
+    }
+    $valid_protocols = @('tcp', 'udp', 'raw')
+    foreach ($proto in $g_Config.Protocol) {
+        if (-Not $valid_protocols.Contains($proto)) {
+            Write-Host "$proto is not a valid protocol"
+            $isValid = $false
+        }
+    }
+    $valid_send = @('b', 'nb', 'ove', 'ovc', 'ovp', 'sel')
+    foreach ($snd in $g_Config.SendMethod) {
+        if (-Not $valid_send.Contains($snd)) {
+            Write-Host "$snd is not a valid send method"
+            $isValid = $false
+        }
+    }
+    return $isValid
+} # validate_config()
+
 #===============================================
 # External Functions - Main Program
 #===============================================
@@ -151,7 +177,11 @@ function test_main {
     $allConfig = Get-Content ./latte/latte.Config.json | ConvertFrom-Json
     [Object] $g_Config     = $allConfig.("Latte$Config")
     if ($null -eq $g_Config) {
-        Write-Host "This Config does not exist in ./latte/latte.Config.json. Please provide a valid config"
+        Write-Host "Latte$Config does not exist in ./latte/latte.Config.json. Please provide a valid config"
+        Throw
+    }
+    if (-Not (validate_config)) {
+        Write-Host "Latte$Config is not a valid config"
         Throw
     }
     [string] $g_DestIp     = $DestIp.Trim()

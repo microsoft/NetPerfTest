@@ -70,7 +70,7 @@ Get-Help ProcessCommands
 That's it. Now sit back and wait for the script to complete. You should see the zip files from DestinationMachineIp and SourceMachineIP machines under the 
 CommandsDir folder you specified (ex: C:\Temp\MyDirectoryForTesting\msdbg.CurrentMachineName.perftest)
 
-At this point you are done! Just don�t forget to share the folder contents and please do move on to the Cleanup step below.
+At this point you are done! Just don't forget to share the folder contents and please do move on to the Cleanup step below.
 
 ## Cleanup
 Now that you're done running the relevant tests, we recommend you run the cleanup script to undo the steps that were done in the Setup stage.

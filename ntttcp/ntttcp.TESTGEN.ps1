@@ -132,6 +132,36 @@ function test_ntttcp {
     }
 } # test_ntttcp()
 
+function validate_config {
+    $isValid = $true
+    $int_vars = @('Iterations', 'StartPort', 'Warmup', 'Cooldown', 'Time')
+    foreach ($var in $int_vars) {
+        if (($null -eq $g_Config.($var)) -or ($g_Config.($var) -lt 0)) {
+            Write-Host "$var is required and must be greater than or equal to 0"
+            $isValid = $false
+        }
+    }
+    $port_vars = @('BufferLen', 'Connections')
+    $protocols = @('tcp', 'udp')
+    foreach ($proto in $protocols) {
+        if ($null -ne $g_Config.($proto)) {
+            foreach ($var in $port_vars) {
+                if ($null -eq $var) {
+                    Write-Host "$var is required if $proto is present"
+                    $isValid = $false
+                }
+                foreach ($num in $var) {
+                    if ($num -le 0) {
+                        Write-Host "Each $var is required to be greater than 0"
+                        $isValid = $false
+                    }
+                }
+            }
+        }
+    }
+    return $isValid
+} # validate_config()
+
 #===============================================
 # External Functions - Main Program
 #===============================================
@@ -147,7 +177,11 @@ function test_main {
     $allConfig = Get-Content ./ntttcp/ntttcp.Config.json | ConvertFrom-Json
     [Object] $g_Config     = $allConfig.("Ntttcp$Config")
     if ($null -eq $g_Config) {
-        Write-Host "This Config does not exist in ./ntttcp/ntttcp.Config.json. Please provide a valid config"
+        Write-Host "Ntttcp$Config does not exist in ./ntttcp/ntttcp.Config.json. Please provide a valid config"
+        Throw
+    }
+    if (-Not (validate_config)) {
+        Write-Host "Ntttcp$Config is not a valid config"
         Throw
     }
     [string] $g_DestIp     = $DestIp.Trim()
