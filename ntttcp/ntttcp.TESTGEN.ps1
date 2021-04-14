@@ -77,8 +77,8 @@ function test_iterations {
     for ($i=0; $i -lt $g_Config.Iterations; $i++) {
         # vary on port number
         [int] $portstart = $g_Config.StartPort + ($i * $g_Config.Iterations)
-        test_recv -Conn $Conn -Port $portstart -Proto $protoParam -OutDir $OutDir -Fname "$Fname.iter$i" -Options $Options 
-        test_send -Conn $Conn -Port $portstart -Proto $protoParam -OutDir $OutDir -Fname "$Fname.iter$i" -Options $Options
+        test_recv -Conn $Conn -Port $portstart -Proto $protoParam -OutDir $OutDir -Fname "$Proto.recv.$Fname.iter$i" -Options $Options 
+        test_send -Conn $Conn -Port $portstart -Proto $protoParam -OutDir $OutDir -Fname "$Proto.send.$Fname.iter$i" -Options $Options
     }
 } # test_iterations()
 
@@ -98,10 +98,10 @@ function test_protocol {
             # vary on Outstanding IO not null in config
             if (($null -ne $g_Config.($Proto).OutstandingIo) -or ($g_Config.($Proto).OutstandingIo.Count -gt 0)) {
                 foreach ($Oio in $g_Config.($Proto).OutstandingIo) {
-                    test_iterations -OutDir $dir -Proto $Proto -Conn $Conn -Fname "$Proto.m$Conn.l$BufLen.a$Oio" -Options "$($g_Config.($Proto).Options) -l $BufLen -a $Oio"
+                    test_iterations -OutDir $dir -Proto $Proto -Conn $Conn -Fname "m$Conn.l$BufLen.a$Oio" -Options "$($g_Config.($Proto).Options) -l $BufLen -a $Oio"
                 }
             } else {
-                test_iterations -OutDir $dir -Proto $Proto -Conn $Conn -Fname "$Proto.m$Conn.l$BufLen" -Options "$($g_Config.($Proto).Options) -l $BufLen"
+                test_iterations -OutDir $dir -Proto $Proto -Conn $Conn -Fname "m$Conn.l$BufLen" -Options "$($g_Config.($Proto).Options) -l $BufLen"
             }
             Write-Host " "
         }
@@ -153,6 +153,14 @@ function validate_config {
                 foreach ($num in $var) {
                     if ($num -le 0) {
                         Write-Host "Each $var is required to be greater than 0"
+                        $isValid = $false
+                    }
+                }
+            }
+            if (($null -ne $g_Config.($proto).OutstandingIo) -and ($g_Config.($proto).OutstandingIo -gt 0)) {
+                foreach ($num in $g_Config.($proto).OutstandingIo) {
+                    if ($num -le 0) {
+                        Write-Host "Each OutstandingIO is required to be greater than 0"
                         $isValid = $false
                     }
                 }
