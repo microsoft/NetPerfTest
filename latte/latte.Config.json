@@ -17,7 +17,7 @@
         "Iterations"     : 15,
         "Protocol"       : ["tcp", "udp"],
         "StartPort"      : 50000,
-        "Time"           : 10,
+        "Time"           : 30,
         "PingIterations" : 10000,
         "SendMethod"     : [ "b" ],
         "Default"        : null,
