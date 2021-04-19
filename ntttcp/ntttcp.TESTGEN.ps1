@@ -37,7 +37,7 @@ function test_recv {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ntttcp.exe -r -m $Conn,*,$g_DestIp $proto $Options -v -wu $($g_Config.Warmup) -cd $($g_Config.Cooldown) -sp -p $Port -t $($g_Config.Time) -xml $out.xml"
+    [string] $cmd = "ntttcp.exe -r -m $Conn,*,$g_DestIp $proto $Options -v -wu $($g_Config.Warmup) -cd $($g_Config.Cooldown) -sp -p $Port -t $($g_Config.Runtime) -xml $out.xml"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
@@ -57,7 +57,7 @@ function test_send {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ntttcp.exe -s -m $Conn,*,$g_DestIp $proto $Options -v -wu $($g_Config.Warmup) -cd $($g_Config.Cooldown) -sp -p $Port -t $($g_Config.Time) -xml $out.xml -nic $g_SrcIp"
+    [string] $cmd = "ntttcp.exe -s -m $Conn,*,$g_DestIp $proto $Options -v -wu $($g_Config.Warmup) -cd $($g_Config.Cooldown) -sp -p $Port -t $($g_Config.Runtime) -xml $out.xml -nic $g_SrcIp"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend    
@@ -134,7 +134,7 @@ function test_ntttcp {
 
 function validate_config {
     $isValid = $true
-    $int_vars = @('Iterations', 'StartPort', 'Warmup', 'Cooldown', 'Time')
+    $int_vars = @('Iterations', 'StartPort', 'Warmup', 'Cooldown', 'Runtime')
     foreach ($var in $int_vars) {
         if (($null -eq $g_Config.($var)) -or ($g_Config.($var) -lt 0)) {
             Write-Host "$var is required and must be greater than or equal to 0"

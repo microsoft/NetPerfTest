@@ -1,6 +1,6 @@
 {
     "NtttcpDefault": {
-        "Iterations": 5,
+        "Iterations": 1,
         "StartPort": 50000,
         "tcp" : {
             "BufferLen"     : [65536],
@@ -16,7 +16,7 @@
         },
         "Warmup"   : 2,
         "Cooldown" : 2,
-        "Time"     : 60
+        "Runtime"  : 10
     },
 
     "NtttcpAzure": {
@@ -36,7 +36,7 @@
         },
         "Warmup"   : 2,
         "Cooldown" : 2,
-        "Time"     : 60
+        "Runtime"  : 90
     },
 
     "NtttcpDetail": {
@@ -49,13 +49,13 @@
             "Options"       : ""
         },
         "udp" : {
-            "BufferLen"     : [1472],
+            "BufferLen"     : [512, 1372, 1472],
             "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
             "OutstandingIo" : null,
             "Options"       : ""
         },
         "Warmup"   : 2,
         "Cooldown" : 2,
-        "Time"     : 60
+        "Runtime"  : 10
     }
 }

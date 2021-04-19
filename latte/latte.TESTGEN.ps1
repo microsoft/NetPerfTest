@@ -2,7 +2,7 @@
 # Script Input Parameters Enforcement
 #===============================================
 Param(
-    [parameter(Mandatory=$false)] [ValidateSet('Default','Azure', 'Detail')] [string] $Config = "Default",
+    [parameter(Mandatory=$false)] [string] $Config = "Default",
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -167,7 +167,7 @@ function validate_config {
 #===============================================
 function test_main {
     Param(
-        [parameter(Mandatory=$false)] [ValidateSet('Default','Azure', 'Detail')] [string] $Config = "Default",
+        [parameter(Mandatory=$false)] [string] $Config = "Default",
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
