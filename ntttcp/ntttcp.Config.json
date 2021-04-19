@@ -40,7 +40,7 @@
     },
 
     "NtttcpDetail": {
-        "Iterations": 5,
+        "Iterations": 3,
         "StartPort": 50000,
         "tcp" : {
             "BufferLen"     : [4096, 65536, 262144],
