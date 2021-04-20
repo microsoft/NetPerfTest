@@ -183,10 +183,10 @@ function test_main {
     try {
         input_display
         # get config variables
-        $allConfig = Get-Content -Path "$PSScriptRoot/ntttcp.Config.json" | ConvertFrom-Json
+        $allConfig = Get-Content -Path "$PSScriptRoot\ntttcp.Config.json" | ConvertFrom-Json
         [Object] $g_Config     = $allConfig.("Ntttcp$Config")
         if ($null -eq $g_Config) {
-            Write-Host "Ntttcp$Config does not exist in ./ntttcp/ntttcp.Config.json. Please provide a valid config"
+            Write-Host "Ntttcp$Config does not exist in .\ntttcp\ntttcp.Config.json. Please provide a valid config"
             Throw
         }
         if (-Not (validate_config)) {

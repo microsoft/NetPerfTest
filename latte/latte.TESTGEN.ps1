@@ -185,10 +185,10 @@ function test_main {
     try {
         input_display
         # get config variables
-        $allConfig = Get-Content -Path "$PSScriptRoot/latte.Config.json" | ConvertFrom-Json
+        $allConfig = Get-Content -Path "$PSScriptRoot\latte.Config.json" | ConvertFrom-Json
         [Object] $g_Config     = $allConfig.("Latte$Config")
         if ($null -eq $g_Config) {
-            Write-Host "Latte$Config does not exist in ./latte/latte.Config.json. Please provide a valid config"
+            Write-Host "Latte$Config does not exist in .\latte\latte.Config.json. Please provide a valid config"
             Throw
         }
         if (-Not (validate_config)) {
