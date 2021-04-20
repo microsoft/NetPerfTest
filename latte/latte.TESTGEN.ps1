@@ -146,18 +146,28 @@ function validate_config {
         }
     }
     $valid_protocols = @('tcp', 'udp', 'raw')
-    foreach ($proto in $g_Config.Protocol) {
-        if (-Not $valid_protocols.Contains($proto)) {
-            Write-Host "$proto is not a valid protocol"
-            $isValid = $false
+    if ($null -ne $g_Config.Protocol) {
+        foreach ($proto in $g_Config.Protocol) {
+            if (-Not $valid_protocols.Contains($proto)) {
+                Write-Host "$proto is not a valid protocol"
+                $isValid = $false
+            }
         }
+    } else {
+        Write-Host "Protocol cannot be null"
+        $isValid = $false
     }
     $valid_send = @('b', 'nb', 'ove', 'ovc', 'ovp', 'sel')
-    foreach ($snd in $g_Config.SendMethod) {
-        if (-Not $valid_send.Contains($snd)) {
-            Write-Host "$snd is not a valid send method"
-            $isValid = $false
+    if ($null -ne $g_Config.SendMethod) {
+        foreach ($snd in $g_Config.SendMethod) {
+            if (-Not $valid_send.Contains($snd)) {
+                Write-Host "$snd is not a valid send method"
+                $isValid = $false
+            }
         }
+    } else {
+        Write-Host "SendMethod cannot be null"
+        $isValid = $false
     }
     return $isValid
 } # validate_config()
@@ -172,30 +182,33 @@ function test_main {
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
     )
-    input_display
-    # get config variables
-    $allConfig = Get-Content ./latte/latte.Config.json | ConvertFrom-Json
-    [Object] $g_Config     = $allConfig.("Latte$Config")
-    if ($null -eq $g_Config) {
-        Write-Host "Latte$Config does not exist in ./latte/latte.Config.json. Please provide a valid config"
-        Throw
-    }
-    if (-Not (validate_config)) {
-        Write-Host "Latte$Config is not a valid config"
-        Throw
-    }
-    [string] $g_DestIp     = $DestIp.Trim()
-    [string] $g_SrcIp      = $SrcIp.Trim()
-    [string] $dir          = (Join-Path -Path $OutDir -ChildPath "latte") 
-    [string] $g_log        = "$dir\LATTE.Commands.txt"
-    [string] $g_logSend    = "$dir\LATTE.Commands.Send.txt"
-    [string] $g_logRecv    = "$dir\LATTE.Commands.Recv.txt" 
-    [string] $g_ConfigFile = ".\latte\LATTE.$Config.Config.ps1"
+    try {
+        input_display
+        # get config variables
+        $allConfig = Get-Content -Path "$PSScriptRoot/latte.Config.json" | ConvertFrom-Json
+        [Object] $g_Config     = $allConfig.("Latte$Config")
+        if ($null -eq $g_Config) {
+            Write-Host "Latte$Config does not exist in ./latte/latte.Config.json. Please provide a valid config"
+            Throw
+        }
+        if (-Not (validate_config)) {
+            Write-Host "Latte$Config is not a valid config"
+            Throw
+        }
+        [string] $g_DestIp     = $DestIp.Trim()
+        [string] $g_SrcIp      = $SrcIp.Trim()
+        [string] $dir          = (Join-Path -Path $OutDir -ChildPath "latte") 
+        [string] $g_log        = "$dir\LATTE.Commands.txt"
+        [string] $g_logSend    = "$dir\LATTE.Commands.Send.txt"
+        [string] $g_logRecv    = "$dir\LATTE.Commands.Recv.txt"
 
-    New-Item -ItemType directory -Path $dir | Out-Null
-    
-    # Optional - Edit spaces in output path for Invoke-Expression compatibility
-    # $dir  = $dir  -replace ' ','` '
+        New-Item -ItemType directory -Path $dir | Out-Null
+        
+        # Optional - Edit spaces in output path for Invoke-Expression compatibility
+        # $dir  = $dir  -replace ' ','` '
 
-    test_latte_generate -OutDir $dir
+        test_latte_generate -OutDir $dir
+    } catch {
+        Write-Host "Unable to generate LATTE commands"
+    }
 } test_main @PSBoundParameters # Entry Point

@@ -180,31 +180,34 @@ function test_main {
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
     )
-    input_display
-    # get config variables
-    $allConfig = Get-Content ./ntttcp/ntttcp.Config.json | ConvertFrom-Json
-    [Object] $g_Config     = $allConfig.("Ntttcp$Config")
-    if ($null -eq $g_Config) {
-        Write-Host "Ntttcp$Config does not exist in ./ntttcp/ntttcp.Config.json. Please provide a valid config"
-        Throw
-    }
-    if (-Not (validate_config)) {
-        Write-Host "Ntttcp$Config is not a valid config"
-        Throw
-    }
-    [string] $g_DestIp     = $DestIp.Trim()
-    [string] $g_SrcIp      = $SrcIp.Trim()
-    [string] $dir          = (Join-Path -Path $OutDir -ChildPath "ntttcp") 
-    [string] $g_log        = "$dir\NTTTCP.Commands.txt"
-    [string] $g_logSend    = "$dir\NTTTCP.Commands.Send.txt"
-    [string] $g_logRecv    = "$dir\NTTTCP.Commands.Recv.txt"
-    [string] $g_ConfigFile = ".\ntttcp\NTTTCP.$Config.Config.ps1"
+    try {
+        input_display
+        # get config variables
+        $allConfig = Get-Content -Path "$PSScriptRoot/ntttcp.Config.json" | ConvertFrom-Json
+        [Object] $g_Config     = $allConfig.("Ntttcp$Config")
+        if ($null -eq $g_Config) {
+            Write-Host "Ntttcp$Config does not exist in ./ntttcp/ntttcp.Config.json. Please provide a valid config"
+            Throw
+        }
+        if (-Not (validate_config)) {
+            Write-Host "Ntttcp$Config is not a valid config"
+            Throw
+        }
+        [string] $g_DestIp     = $DestIp.Trim()
+        [string] $g_SrcIp      = $SrcIp.Trim()
+        [string] $dir          = (Join-Path -Path $OutDir -ChildPath "ntttcp") 
+        [string] $g_log        = "$dir\NTTTCP.Commands.txt"
+        [string] $g_logSend    = "$dir\NTTTCP.Commands.Send.txt"
+        [string] $g_logRecv    = "$dir\NTTTCP.Commands.Recv.txt"
 
-    # Edit spaces in path for Invoke-Expression compatibility
-    $dir = $dir -replace ' ','` '
-    
-    New-Item -ItemType directory -Path $dir | Out-Null
-    Write-Host "test_ntttcp -OutDir $dir"
+        # Edit spaces in path for Invoke-Expression compatibility
+        $dir = $dir -replace ' ','` '
+        
+        New-Item -ItemType directory -Path $dir | Out-Null
+        Write-Host "test_ntttcp -OutDir $dir"
 
-    test_ntttcp -OutDir $dir
+        test_ntttcp -OutDir $dir
+    } catch {
+        Write-Host "Unable to generate NTTTCP commands"
+    }
 } test_main @PSBoundParameters # Entry Point
