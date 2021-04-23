@@ -4,13 +4,13 @@
         "StartPort": 50000,
         "tcp" : {
             "BufferLen"     : [65536],
-            "Connections"   : [64],
+            "Connections"   : [1, 64],
             "OutstandingIo" :[2, 16],
             "Options"       : ""
         },
         "udp" : {
             "BufferLen"     : [65536],
-            "Connections"   : [64],
+            "Connections"   : [1, 64],
             "OutstandingIo" : null,
             "Options"       : ""
         },
