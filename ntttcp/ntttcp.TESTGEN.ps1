@@ -209,5 +209,6 @@ function test_main {
         test_ntttcp -OutDir $dir
     } catch {
         Write-Host "Unable to generate NTTTCP commands"
+        Write-Host "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
     }
 } test_main @PSBoundParameters # Entry Point

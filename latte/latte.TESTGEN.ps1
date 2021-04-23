@@ -210,5 +210,6 @@ function test_main {
         test_latte_generate -OutDir $dir
     } catch {
         Write-Host "Unable to generate LATTE commands"
+        Write-Host "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
     }
 } test_main @PSBoundParameters # Entry Point
