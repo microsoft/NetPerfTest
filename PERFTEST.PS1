@@ -2,10 +2,8 @@
 # Script Input Parameters Enforcement
 #===============================================
 Param(
-    [parameter(Mandatory=$false)] [switch] $Detail = $false,
-    [parameter(Mandatory=$false)] [switch] $Diag   = $false,
-    [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
-    [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Config = "Sampling",
+    [parameter(Mandatory=$false)] [switch] $Diag = $false,
+    [parameter(Mandatory=$false)] [string] $Config = "Default",
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -18,9 +16,7 @@ function input_display {
     Write-Host "============================================"
     Write-Host "$g_path\$scriptName"
     Write-Host " Inputs:"
-    Write-Host "  -Detail     = $Detail"
     Write-Host "  -Diag       = $Diag"
-    Write-Host "  -Iterations = $Iterations"
     Write-Host "  -Config     = $Config"
     Write-Host "  -DestIp     = $DestIp"
     Write-Host "  -SrcIp      = $SrcIp"
@@ -82,10 +78,8 @@ function env_destroy {
 #===============================================
 function test_main {
     Param(
-        [parameter(Mandatory=$false)] [switch] $Detail     = $false,
-        [parameter(Mandatory=$false)] [switch] $Diag       = $false,
-        [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
-        [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Config = "Sampling",
+        [parameter(Mandatory=$false)] [switch] $Diag = $false,
+        [parameter(Mandatory=$false)] [string] $Config = "Default",
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -99,8 +93,6 @@ function test_main {
     Write-Host $start
     Write-Host $version
 
-    [int]    $g_iters     = $Iterations
-    [bool]   $g_detail    = $Detail
     [bool]   $g_diag      = $Diag
     [string] $g_config    = $Config
     [string] $g_DestIp    = $DestIp
@@ -117,8 +109,8 @@ function test_main {
         # More work needed here.  Specifically to generate the commands to file and integrate with execution.
         #.\diag\Network.Diagnosis.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir
     }else {
-        .\latte\latte.TESTGEN.ps1   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail -Iterations $g_iters -Config $g_config
-        .\ntttcp\ntttcp.TESTGEN.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Detail:$g_detail -Iterations $g_iters -Config $g_config
+        & "$PSScriptRoot\latte\latte.TESTGEN.ps1"   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
+        & "$PSScriptRoot\ntttcp\ntttcp.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
     }
 } test_main @PSBoundParameters # Entry Point
 

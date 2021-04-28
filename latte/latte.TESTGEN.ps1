@@ -2,9 +2,7 @@
 # Script Input Parameters Enforcement
 #===============================================
 Param(
-    [parameter(Mandatory=$false)] [switch] $Detail = $false,
-    [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
-    [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Config = "Sampling",
+    [parameter(Mandatory=$false)] [string] $Config = "Default",
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -17,8 +15,7 @@ function input_display {
     Write-Host "============================================"
     Write-Host "$g_path\$scriptName"
     Write-Host " Inputs:"
-    Write-Host "  -Detail     = $Detail"
-    Write-Host "  -Iterations = $Detail"
+    Write-Host "  -Config     = $Config"
     Write-Host "  -DestIp     = $DestIp"
     Write-Host "  -SrcIp      = $SrcIp"
     Write-Host "  -OutDir     = $OutDir"
@@ -33,7 +30,6 @@ function banner {
     Param(
         [parameter(Mandatory=$true)] [String] $Msg
     )
-
     Write-Host "==========================================================================="
     Write-Host "| $Msg"
     Write-Host "==========================================================================="
@@ -77,111 +73,143 @@ function test_send {
     Write-Host   $cmd 
 } # test_send()
 
+function test_protocol {
+    [CmdletBinding()]
+    Param(
+        [parameter(Mandatory=$false)] [String] $OutDirDefault,
+        [parameter(Mandatory=$false)] [String] $OutDirOpt,
+        [parameter(Mandatory=$true)] [String] $Protocol,
+        [parameter(Mandatory=$true)] [String] $Iter,
+        [parameter(Mandatory=$true)] [String] $Fname,
+        [parameter(Mandatory=$false)] [bool]   $NoDumpParam = $false
+    )
+    # vary send method
+    foreach ($snd in $g_Config.SendMethod) {
+        for ($i=0; $i -lt $g_Config.Iterations; $i++) {
+            # vary port number
+            [int] $portstart = $g_Config.StartPort + ($i * $g_Config.Iterations)
+            # output optimized commands
+            if ($null -ne  $g_Config.Optimized) {
+                test_send -Iter $Iter -Port $portstart -Type "-$Protocol" -Snd $snd -Options $g_Config.Optimized -OutDir $OutDirOpt -Fname "$Fname.$snd.OPT.iter$i" -NoDumpParam $NoDumpParam
+                test_recv
+            } 
+            # output default commands
+            if ($null -ne  $g_Config.Default) {
+                test_send -Iter $Iter -Port $portstart -Type "-$Protocol" -Snd $snd -Options $g_Config.Default -OutDir $OutDirDefault -Fname "$Fname.$snd.iter$i" -NoDumpParam $NoDumpParam
+                test_recv
+            }
+        }
+    }
+}
+
 function test_latte_generate {
     [CmdletBinding()]
     Param(
-        [parameter(Mandatory=$true)] [String] $OutDir,
-        [parameter(Mandatory=$true)] [ValidateScript({Test-Path $_})] [String] $ConfigFile
+        [parameter(Mandatory=$true)] [String] $OutDir
     )
-
-    #Load the variables needed to generate the commands
-    Try
-    {
-        . .\$ConfigFile
-    }
-    Catch
-    {
-        Write-Host "$ConfigFile will not be used. Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
-    }
-
     # Normalize output directory
     $dir = $OutDir
-
-    # Send types - Default is 'b' per LATTE docs.
-    [string]    $sndsDflt = 'b'
-    [string []] $snds     = @($sndsDflt)
-    if ($g_detail) {
-        $snds = @($sndsDflt, 'nb', 'ove', 'ovc', 'ovp', 'sel')
+    # create default and optimized directory if not null in config to store commands in
+    $dirDefault = $null
+    $dirOptimized = $null
+    if ($null -ne $g_Config.Default) {
+        $dirDefault = (Join-Path -Path $OutDir -ChildPath "default") 
+    }
+    if ($null -ne $g_Config.Optimized) {
+        $dirOptimized = (Join-Path -Path $OutDir -ChildPath "optimized") 
     }
 
     # Transports
-    [string []] $soctypes = @('tcp', 'udp')
-    foreach ($soc in $soctypes) {
-        $dirDefault   = (Join-Path -Path $OutDir -ChildPath "default") 
-        $dirOptimized = (Join-Path -Path $OutDir -ChildPath "optimized") 
-
+    foreach ($Protocol in $g_Config.Protocol) {
         # Iteration Tests capturing each transaction time
         # - Measures over input samples
-        banner -Msg "Iteration Tests: [$soc] operations per bounded iterations"
-        [int] $tmp  = 50000
-        [int] $iter = 10000 # When "-i" is used, latte limits iterations to 1-10000 range.
-        foreach ($snd in $snds) {
-            for ($i=0; $i -lt $g_iters; $i++) {
-                [int] $portstart = $tmp + ($i * $g_iters)
-
-                #optimized
-                test_send -Iter "-i $iter" -Port $portstart -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dirOptimized -Fname "$soc.i$iter.$snd.OPT.iter$i"
-                test_recv
-
-                # Default
-                if ($g_detail) {
-                    test_send -Iter "-i $iter" -Port $portstart -Type "-$soc" -Snd $snd -OutDir $dirDefault -Fname "$soc.i$iter.$snd.iter$i"
-                    test_recv
-                }
-            }
+        if ($g_Config.PingIterations -gt 0) {
+            banner -Msg "Iteration Tests: [$Protocol] operations per bounded iterations"
+            test_protocol -Iter "-i $($g_Config.PingIterations)" -Protocol $Protocol -OutDirOpt $dirOptimized -OutDirDefault $dirDefault -Fname "$Protocol.i$($g_Config.PingIterations)"
         }
-
         # Transactions per 10s
         # - Measures operations per bounded time.
-        banner -Msg "Time Tests: [$soc] operations per bounded time"
-        [int] $tmp = 50000
-        [int] $sec = 30
-        foreach ($snd in $snds) {
-            for ($i=0; $i -lt $g_iters; $i++) {
-                [int] $portstart = $tmp + ($i * $g_iters)
-
-                # Optimized
-                test_send -Iter "-t $sec" -Port $portstart -Type "-$soc" -Snd $snd -Options "-group 0 -rio -riopoll 100000000000" -OutDir $dirOptimized -Fname "$soc.t$sec.$snd.OPT.iter$i" -NoDumpParam $true
-                test_recv
-                
-                # Default
-                if ($g_detail) {
-                    test_send -Iter "-t $sec" -Port $portstart -Type "-$soc" -Snd $snd -OutDir $dirDefault -Fname "$soc.t$sec.$snd.iter$i" -NoDumpParam $true
-                    test_recv
-                }
-            }
+        if ($g_Config.Time -gt 0) {
+            banner -Msg "Time Tests: [$Protocol] operations per bounded time"
+            test_protocol -Iter "-t $($g_Config.Time)" -Protocol $Protocol -OutDirOpt $dirOptimized -OutDirDefault $dirDefault -Fname "$Protocol.t$($g_Config.Time)" -NoDumpParam $true
         }
     }
 } # test_latte_generate()
+
+function validate_config {
+    $isValid = $true
+    $int_vars = @('Iterations', 'StartPort', 'Time', 'PingIterations')
+    foreach ($var in $int_vars) {
+        if (($null -eq $g_Config.($var)) -or ($g_Config.($var) -lt 0)) {
+            Write-Host "$var is required and must be greater than or equal to 0"
+            $isValid = $false
+        }
+    }
+    $valid_protocols = @('tcp', 'udp', 'raw')
+    if ($null -ne $g_Config.Protocol) {
+        foreach ($proto in $g_Config.Protocol) {
+            if (-Not $valid_protocols.Contains($proto)) {
+                Write-Host "$proto is not a valid protocol"
+                $isValid = $false
+            }
+        }
+    } else {
+        Write-Host "Protocol cannot be null"
+        $isValid = $false
+    }
+    $valid_send = @('b', 'nb', 'ove', 'ovc', 'ovp', 'sel')
+    if ($null -ne $g_Config.SendMethod) {
+        foreach ($snd in $g_Config.SendMethod) {
+            if (-Not $valid_send.Contains($snd)) {
+                Write-Host "$snd is not a valid send method"
+                $isValid = $false
+            }
+        }
+    } else {
+        Write-Host "SendMethod cannot be null"
+        $isValid = $false
+    }
+    return $isValid
+} # validate_config()
 
 #===============================================
 # External Functions - Main Program
 #===============================================
 function test_main {
     Param(
-        [parameter(Mandatory=$false)] [switch] $Detail = $false,
-        [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
-        [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Config = "Sampling",
+        [parameter(Mandatory=$false)] [string] $Config = "Default",
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
     )
-    input_display
-    
-    [int]    $g_iters      = $Iterations
-    [bool]   $g_detail     = $Detail
-    [string] $g_DestIp     = $DestIp.Trim()
-    [string] $g_SrcIp      = $SrcIp.Trim()
-    [string] $dir          = (Join-Path -Path $OutDir -ChildPath "latte") 
-    [string] $g_log        = "$dir\LATTE.Commands.txt"
-    [string] $g_logSend    = "$dir\LATTE.Commands.Send.txt"
-    [string] $g_logRecv    = "$dir\LATTE.Commands.Recv.txt" 
-    [string] $g_ConfigFile = ".\latte\LATTE.$Config.Config.ps1"
+    try {
+        input_display
+        # get config variables
+        $allConfig = Get-Content -Path "$PSScriptRoot\latte.Config.json" | ConvertFrom-Json
+        [Object] $g_Config     = $allConfig.("Latte$Config")
+        if ($null -eq $g_Config) {
+            Write-Host "Latte$Config does not exist in .\latte\latte.Config.json. Please provide a valid config"
+            Throw
+        }
+        if (-Not (validate_config)) {
+            Write-Host "Latte$Config is not a valid config"
+            Throw
+        }
+        [string] $g_DestIp     = $DestIp.Trim()
+        [string] $g_SrcIp      = $SrcIp.Trim()
+        [string] $dir          = (Join-Path -Path $OutDir -ChildPath "latte") 
+        [string] $g_log        = "$dir\LATTE.Commands.txt"
+        [string] $g_logSend    = "$dir\LATTE.Commands.Send.txt"
+        [string] $g_logRecv    = "$dir\LATTE.Commands.Recv.txt"
 
-    New-Item -ItemType directory -Path $dir | Out-Null
-    
-    # Optional - Edit spaces in output path for Invoke-Expression compatibility
-    # $dir  = $dir  -replace ' ','` '
+        New-Item -ItemType directory -Path $dir | Out-Null
+        
+        # Optional - Edit spaces in output path for Invoke-Expression compatibility
+        # $dir  = $dir  -replace ' ','` '
 
-    test_latte_generate -OutDir $dir -ConfigFile $g_ConfigFile
+        test_latte_generate -OutDir $dir
+    } catch {
+        Write-Host "Unable to generate LATTE commands"
+        Write-Host "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
+    }
 } test_main @PSBoundParameters # Entry Point

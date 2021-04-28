@@ -2,9 +2,7 @@
 # Script Input Parameters Enforcement
 #===============================================
 Param(
-    [parameter(Mandatory=$false)] [switch] $Detail = $false,
-    [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
-    [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Config = "Sampling",
+    [parameter(Mandatory=$false)] [string] $Config = "Default",
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
@@ -17,8 +15,6 @@ function input_display {
     Write-Host "============================================"
     Write-Host "$g_path\$scriptName"
     Write-Host " Inputs:"
-    Write-Host "  -Detail     = $Detail"
-    Write-Host "  -Iterations = $Iterations"
     Write-Host "  -Config     = $Config"
     Write-Host "  -DestIp     = $DestIp"
     Write-Host "  -SrcIp      = $SrcIp"
@@ -36,11 +32,12 @@ function test_recv {
         [parameter(Mandatory=$true)]   [Int]    $Port,
         [parameter(Mandatory=$false)]  [string] $Proto,
         [parameter(Mandatory=$true)]   [String] $OutDir,
-        [parameter(Mandatory=$true)]   [String] $Fname
+        [parameter(Mandatory=$true)]   [String] $Fname,
+        [parameter(Mandatory=$true)]   [String] $Options
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ntttcp.exe -r -m $Conn,*,$g_DestIp $proto -v -wu $g_ptime -cd $g_ptime -sp -p $Port -t $g_runtime -xml $out.xml"
+    [string] $cmd = "ntttcp.exe -r -m $Conn,*,$g_DestIp $proto $Options -v -wu $($g_Config.Warmup) -cd $($g_Config.Cooldown) -sp -p $Port -t $($g_Config.Runtime) -xml $out.xml"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
@@ -55,70 +52,67 @@ function test_send {
         [parameter(Mandatory=$true)]   [Int]    $Port,
         [parameter(Mandatory=$false)]  [string] $Proto,
         [parameter(Mandatory=$true)]   [String] $OutDir,
-        [parameter(Mandatory=$true)]   [String] $Fname
+        [parameter(Mandatory=$true)]   [String] $Fname,
+        [parameter(Mandatory=$true)]   [String] $Options
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ntttcp.exe -s -m $Conn,*,$g_DestIp $proto -v -wu $g_ptime -cd $g_ptime -sp -p $Port -t $g_runtime -xml $out.xml -nic $g_SrcIp"
+    [string] $cmd = "ntttcp.exe -s -m $Conn,*,$g_DestIp $proto $Options -v -wu $($g_Config.Warmup) -cd $($g_Config.Cooldown) -sp -p $Port -t $($g_Config.Runtime) -xml $out.xml -nic $g_SrcIp"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend    
     Write-Host   $cmd 
 } # test_send()
 
-function test_udp {
+function test_iterations {
     [CmdletBinding()]
     Param(
         [parameter(Mandatory=$true)] [String] $OutDir,
-        [parameter(Mandatory=$true)] [Int]    $Conn
+        [parameter(Mandatory=$true)] [String] $Proto,
+        [parameter(Mandatory=$true)]   [Int]    $Conn,
+        [parameter(Mandatory=$true)]   [String] $Fname,
+        [parameter(Mandatory=$true)]   [String] $Options
     )
-    
-    [int]    $tmp    = 50000
-    [int]    $BufLen = 1472
-    [string] $udpstr = "-u -l $BufLen"
-    for ($i=0; $i -lt $g_iters; $i++) {
-        [int] $portstart = $tmp + ($i * $g_iters)
-        test_recv -Conn $Conn -Port $portstart -Proto $udpstr -OutDir $OutDir -Fname "udp.recv.m$Conn.l$BufLen.iter$i"
-        test_send -Conn $Conn -Port $portstart -Proto $udpstr -OutDir $OutDir -Fname "udp.send.m$Conn.l$BufLen.iter$i"
+    $protoParam = if ($Proto -eq "udp") {"-u"} else {""};
+    for ($i=0; $i -lt $g_Config.Iterations; $i++) {
+        # vary on port number
+        [int] $portstart = $g_Config.StartPort + ($i * $g_Config.Iterations)
+        test_recv -Conn $Conn -Port $portstart -Proto $protoParam -OutDir $OutDir -Fname "$Proto.recv.$Fname.iter$i" -Options $Options 
+        test_send -Conn $Conn -Port $portstart -Proto $protoParam -OutDir $OutDir -Fname "$Proto.send.$Fname.iter$i" -Options $Options
     }
-} # test_udp()
+} # test_iterations()
 
-function test_tcp {
+function test_protocol {
     [CmdletBinding()]
     Param(
         [parameter(Mandatory=$true)] [String] $OutDir,
-        [parameter(Mandatory=$true)] [Int]    $Conn
+        [parameter(Mandatory=$true)] [String] $Proto 
     )
-
-    # NTTTCP outstanding IO ^2 scaling. Min -> Default (2) -> MAX supported.
-    # - Finds optimial outstanding IO scaling value per BW
-    [int[]] $OutIoList  = @(2, 16) #default is 2, see ntttcp -help
-    [int[]] $BufLenList = @(65536)    #default is 64K, see ntttcp -help
-    if ($g_detail) {
-        $OutIoList  = @(2, 4, 8, 16, 32, 63) # max is 63, see ntttcp -help
-        $BufLenList = @(4096, 65536, 262144) # Stakeholder requested values
-    }
-
-    foreach ($BufLen in $BufLenList) {
-        foreach ($Oio in $OutIoList) {
-            [string] $tcpstr = "-a $Oio -w -l $BufLen"
-            [int]    $tmp    = 50000
-            for ($i=0; $i -lt $g_iters; $i++) {
-                [int] $portstart = $tmp + ($i * $g_iters)
-                test_recv -Conn $Conn -Port $portstart -Proto $tcpstr -OutDir $OutDir -Fname "tcp.recv.m$Conn.l$BufLen.a$Oio.iter$i"
-                test_send -Conn $Conn -Port $portstart -Proto $tcpstr -OutDir $OutDir -Fname "tcp.send.m$Conn.l$BufLen.a$Oio.iter$i"
+    banner -Msg "$Proto Tests"
+    $dir = (Join-Path -Path $OutDir -ChildPath $Proto) 
+    New-Item -ItemType directory -Path $dir | Out-Null
+    # vary on number of connections
+    foreach ($Conn in $g_Config.($Proto).Connections) {
+        # vary on buffer len
+        foreach ($BufLen in $g_Config.($Proto).BufferLen) {
+            # vary on Outstanding IO not null in config
+            if (($null -ne $g_Config.($Proto).OutstandingIo) -or ($g_Config.($Proto).OutstandingIo.Count -gt 0)) {
+                foreach ($Oio in $g_Config.($Proto).OutstandingIo) {
+                    test_iterations -OutDir $dir -Proto $Proto -Conn $Conn -Fname "m$Conn.l$BufLen.a$Oio" -Options "$($g_Config.($Proto).Options) -l $BufLen -a $Oio"
+                }
+            } else {
+                test_iterations -OutDir $dir -Proto $Proto -Conn $Conn -Fname "m$Conn.l$BufLen" -Options "$($g_Config.($Proto).Options) -l $BufLen"
             }
             Write-Host " "
         }
     }
-} # test_tcp()
+} # test_protocol()
 
 function banner {
     [CmdletBinding()]
     Param(
         [parameter(Mandatory=$true)] [String] $Msg
     )
-
     Write-Host "==========================================================================="
     Write-Host "| $Msg"
     Write-Host "==========================================================================="
@@ -127,80 +121,94 @@ function banner {
 function test_ntttcp {
     [CmdletBinding()]
     Param(
-        [parameter(Mandatory=$true)] [String] $OutDir,
-        [parameter(Mandatory=$true)] [ValidateScript({Test-Path $_})] [String] $ConfigFile
+        [parameter(Mandatory=$true)] [String] $OutDir
     )
-
-    #Load the variables needed to generate the commands
-    # execution time in seconds
-    [int] $g_runtime = 10
-    [int] $g_ptime   = 2
-
-    # execution time ($g_runtime) in seconds, wu, cd times ($g_ptime) will come from the Config ps1 file, if specified and take precedence over defaults 
-    Try
-    {
-        . .\$ConfigFile
-    }
-    Catch
-    {
-        Write-Host "$ConfigFile will not be used. Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
+    if ($null -ne $g_Config.Tcp) {
+        test_protocol -OutDir $OutDir -Proto "tcp"
     }
 
-    # NTTTCP ^2 connection scaling to MAX supported.
-    [int]   $ConnMax  = 512 # NTTTCP maximum connections is 999.
-    [int[]] $ConnList = @(1, 64)
-    if ($g_detail) {
-        $ConnList = @(1, 2, 4, 8, 16, 32, 64, 128, 256, $ConnMax)
-    }
-
-    [string] $dir = $OutDir
-    # Separate loops simply for output readability
-    banner -Msg "TCP Tests"
-    $dir = (Join-Path -Path $OutDir -ChildPath "tcp") 
-    New-Item -ItemType directory -Path $dir | Out-Null
-    foreach ($Conn in $ConnList) {
-        test_tcp -Conn $Conn -OutDir $dir
-        Write-Host " "
-    }
-
-    banner -Msg "UDP Tests"
-    $dir = (Join-Path -Path $OutDir -ChildPath "udp") 
-    New-Item -ItemType directory -Path $dir | Out-Null
-    foreach ($Conn in $ConnList) {
-        test_udp -Conn $Conn -OutDir $dir
-        Write-Host " "
+    if ($null -ne $g_Config.Udp) {
+        test_protocol -OutDir $OutDir -Proto "udp"
     }
 } # test_ntttcp()
+
+function validate_config {
+    $isValid = $true
+    $int_vars = @('Iterations', 'StartPort', 'Warmup', 'Cooldown', 'Runtime')
+    foreach ($var in $int_vars) {
+        if (($null -eq $g_Config.($var)) -or ($g_Config.($var) -lt 0)) {
+            Write-Host "$var is required and must be greater than or equal to 0"
+            $isValid = $false
+        }
+    }
+    $port_vars = @('BufferLen', 'Connections')
+    $protocols = @('tcp', 'udp')
+    foreach ($proto in $protocols) {
+        if ($null -ne $g_Config.($proto)) {
+            foreach ($var in $port_vars) {
+                if ($null -eq $var) {
+                    Write-Host "$var is required if $proto is present"
+                    $isValid = $false
+                }
+                foreach ($num in $var) {
+                    if ($num -le 0) {
+                        Write-Host "Each $var is required to be greater than 0"
+                        $isValid = $false
+                    }
+                }
+            }
+            if (($null -ne $g_Config.($proto).OutstandingIo) -and ($g_Config.($proto).OutstandingIo -gt 0)) {
+                foreach ($num in $g_Config.($proto).OutstandingIo) {
+                    if ($num -le 0) {
+                        Write-Host "Each OutstandingIO is required to be greater than 0"
+                        $isValid = $false
+                    }
+                }
+            }
+        }
+    }
+    return $isValid
+} # validate_config()
 
 #===============================================
 # External Functions - Main Program
 #===============================================
 function test_main {
     Param(
-        [parameter(Mandatory=$false)] [switch] $Detail = $false,
-        [parameter(Mandatory=$false)] [Int]    $Iterations = 1,
-        [parameter(Mandatory=$false)] [ValidateSet('Sampling','Testing')] [string] $Config = "Sampling",
+        [parameter(Mandatory=$false)] [string] $Config = "Default",
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
     )
-    input_display
+    try {
+        input_display
+        # get config variables
+        $allConfig = Get-Content -Path "$PSScriptRoot\ntttcp.Config.json" | ConvertFrom-Json
+        [Object] $g_Config     = $allConfig.("Ntttcp$Config")
+        if ($null -eq $g_Config) {
+            Write-Host "Ntttcp$Config does not exist in .\ntttcp\ntttcp.Config.json. Please provide a valid config"
+            Throw
+        }
+        if (-Not (validate_config)) {
+            Write-Host "Ntttcp$Config is not a valid config"
+            Throw
+        }
+        [string] $g_DestIp     = $DestIp.Trim()
+        [string] $g_SrcIp      = $SrcIp.Trim()
+        [string] $dir          = (Join-Path -Path $OutDir -ChildPath "ntttcp") 
+        [string] $g_log        = "$dir\NTTTCP.Commands.txt"
+        [string] $g_logSend    = "$dir\NTTTCP.Commands.Send.txt"
+        [string] $g_logRecv    = "$dir\NTTTCP.Commands.Recv.txt"
 
-    [int]    $g_iters      = $Iterations
-    [bool]   $g_detail     = $Detail
-    [string] $g_DestIp     = $DestIp.Trim()
-    [string] $g_SrcIp      = $SrcIp.Trim()
-    [string] $dir          = (Join-Path -Path $OutDir -ChildPath "ntttcp") 
-    [string] $g_log        = "$dir\NTTTCP.Commands.txt"
-    [string] $g_logSend    = "$dir\NTTTCP.Commands.Send.txt"
-    [string] $g_logRecv    = "$dir\NTTTCP.Commands.Recv.txt"
-    [string] $g_ConfigFile = ".\ntttcp\NTTTCP.$Config.Config.ps1"
+        # Edit spaces in path for Invoke-Expression compatibility
+        $dir = $dir -replace ' ','` '
+        
+        New-Item -ItemType directory -Path $dir | Out-Null
+        Write-Host "test_ntttcp -OutDir $dir"
 
-    # Edit spaces in path for Invoke-Expression compatibility
-    $dir = $dir -replace ' ','` '
-    
-    New-Item -ItemType directory -Path $dir | Out-Null
-    Write-Host "test_ntttcp -OutDir $dir -ConfigFile $g_ConfigFile"
-
-    test_ntttcp -OutDir $dir -ConfigFile $g_ConfigFile
+        test_ntttcp -OutDir $dir
+    } catch {
+        Write-Host "Unable to generate NTTTCP commands"
+        Write-Host "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
+    }
 } test_main @PSBoundParameters # Entry Point
