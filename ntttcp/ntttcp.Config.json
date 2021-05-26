@@ -9,7 +9,7 @@
             "Options"       : ""
         },
         "udp" : {
-            "BufferLen"     : [65536],
+            "BufferLen"     : [1472],
             "Connections"   : [1, 64],
             "OutstandingIo" : null,
             "Options"       : ""
@@ -29,7 +29,7 @@
             "Options": ""
         },
         "udp" : {
-            "BufferLen"     : [1472],
+            "BufferLen"     : [1372, 1472],
             "Connections"   : [1, 64],
             "OutstandingIo" : null,
             "Options"       : ""
