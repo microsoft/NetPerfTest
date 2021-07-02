@@ -57,5 +57,25 @@
         "Warmup"   : 2,
         "Cooldown" : 2,
         "Runtime"  : 10
+    },
+
+    "NtttcpMax": {
+        "Iterations": 5,
+        "StartPort": 50000,
+        "tcp" : {
+            "BufferLen"     : [65536],
+            "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
+            "OutstandingIo" :[16],
+            "Options"       : ""
+        },
+        "udp" : {
+            "BufferLen"     : [1372],
+            "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
+            "OutstandingIo" : null,
+            "Options"       : ""
+        },
+        "Warmup"   : 5,
+        "Cooldown" : 5,
+        "Runtime"  : 15
     }
 }
