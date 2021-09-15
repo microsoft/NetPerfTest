@@ -1,0 +1,37 @@
+.\cps.exe -?
+
+cps {-s|-c} [options] [ [-r <repeat>] <thread_parameters> ]+
+where:
+
+  -s: run as a server which listens for incoming connections on specified local addresses/ports
+  -c: run as a client which establishes connections to specified remote addresses/ports
+
+  <thread_parameters> for server is in the form of <localip,port>
+
+  <thread_parameters> for client is in the form of <localip,port,remoteip,port,N,P,D,M> where:
+      N: total number of connections to open for the thread
+      P: max number of pending connect requests at any given time for the thread
+      D: duration in milliseconds for each connection established by the thread
+      M: data transfer mode for the thread; 0: no send/receive, 1: one send/receive,
+                                            2: continuous send/receive
+
+Each <thread_parameters> instance creates 1 thread by default. Precede the <thread_parameters> with
+a -r <repeat> option for creating multiple threads with the same parameters with the exception that
+each non-zero local or remote port number gets incremented by one for 2nd and later replicas unless
+-rup option is specified. So, with -rup, the same port number is used in each -r replica.
+The options are:
+  -rup : use the SO_REUSEPORT option on listener sockets.
+  -tka <idle_sec>: enable TCP keep-alive on all connections with an idle period idle_sec seconds.
+  -t <duration_sec> : stop and report final stats after this many seconds. (default: run forever)
+  -i <display_interval_sec> : display various current stats with this period. (default: 1)
+  -k <mode_2_interval_sec> : client only - in mode 2, wait this many seconds between send/receive attempts. (default: 0)
+                             This also rate-limits the connects HENCE SHOULD NOT be used for max CPS measurements.
+  -ds <delay_start_sec> : start connection activity after this many seconds from program launch. (default: 0)
+  -wt <warm_up_seconds> : skip this many seconds when reporting the final stats at the end. (default: 0)
+  -sil : silent-mode; do not print stats periodically during the run
+  -o <output_file_name> : direct all output to the specified file. (default: stdout)
+Following are experimental options:
+  -len <send_or_receive_size> : issue sends and receives with this size. (default: 1000)
+  -send <send_size> : continuous send mode; takes precedence over the 'M' value in thread_parameters
+  -recv <recv_size> : continuous receive mode; takes precedence over the 'M' value in thread_parameters
+  -poll : poll for send and receive completions

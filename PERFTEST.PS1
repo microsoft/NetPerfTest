@@ -3,6 +3,7 @@
 #===============================================
 Param(
     [parameter(Mandatory=$false)] [switch] $Diag = $false,
+    [ValidateSet("Default", "Azure", "Detail", "Max")]
     [parameter(Mandatory=$false)] [string] $Config = "Default",
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
@@ -78,17 +79,17 @@ function env_destroy {
 #===============================================
 function test_main {
     Param(
-        [parameter(Mandatory=$false)] [switch] $Diag = $false,
         [parameter(Mandatory=$false)] [string] $Config = "Default",
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
-        [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
+        [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" ,
+        [parameter(Mandatory=$false)] [switch] $Diag = $false
     )
     Clear-Host
     input_display
 
     $start   = Get-Date
-    $version = "2020.08.16.0" # Version within date context
+    $version = "2020.09.13.0" # Version within date context
 
     Write-Host $start
     Write-Host $version
@@ -109,6 +110,7 @@ function test_main {
         # More work needed here.  Specifically to generate the commands to file and integrate with execution.
         #.\diag\Network.Diagnosis.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir
     }else {
+        & "$PSScriptRoot\cps\cps.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
         & "$PSScriptRoot\latte\latte.TESTGEN.ps1"   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
         & "$PSScriptRoot\ntttcp\ntttcp.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
     }
