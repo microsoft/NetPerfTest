@@ -1,0 +1,45 @@
+{
+    "CtsTrafficDefault": {
+        "Iterations": 1,
+        "StartPort": 50000,
+        "tcp" : {
+            "BufferLen"     : [4194304],
+            "Connections"   : [1, 64], 
+            "Options"       : ""
+        }, 
+        "Runtime"  : 15
+    },
+
+    "CtsTrafficAzure": {
+        "Iterations" : 5,
+        "StartPort"  : 50000,
+        "tcp" : {
+            "BufferLen"     : [4194304],
+            "Connections"   : [64], 
+            "Options": ""
+        }, 
+        "Runtime"  : 95
+    },
+
+    "CtsTrafficDetail": {
+        "Iterations": 3,
+        "StartPort": 50000,
+        "tcp" : {
+            "BufferLen"     : [4194304],
+            "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512], 
+            "Options"       : ""
+        }, 
+        "Runtime"  : 15
+    },
+
+    "CtsTrafficMax": {
+        "Iterations": 5,
+        "StartPort": 50000,
+        "tcp" : {
+            "BufferLen"     : [4194304],
+            "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512], 
+            "Options"       : ""
+        }, 
+        "Runtime"  : 25
+    }
+}
