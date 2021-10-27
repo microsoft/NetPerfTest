@@ -37,7 +37,7 @@ function test_recv {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ctstraffic.exe -listen:$g_DestIp -Port:$Port -verify:connection -transfer:0xffffffffffffffff -msgwaitall:on -io:rioiocp $Options"
+    [string] $cmd = "ctstraffic.exe -listen:$g_DestIp -Port:$Port $Proto -verify:connection -transfer:0xffffffffffffffff -msgwaitall:on -io:rioiocp $Options"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
@@ -57,7 +57,7 @@ function test_send {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ctstraffic.exe -bind:$g_SrcIp -target:$g_DestIp -Port:$Port -connections:$Conn -timeLimit:$(1000 * [Int]$g_Config.Runtime) -verify:connection -transfer:0xffffffffffffffff -msgwaitall:on -io:rioiocp -statusfilename:$out.csv $Options"
+    [string] $cmd = "ctstraffic.exe -bind:$g_SrcIp -target:$g_DestIp $Proto -Port:$Port -connections:$Conn -timeLimit:$(1000 * [Int]$g_Config.Runtime) -verify:connection -transfer:0xffffffffffffffff -msgwaitall:on -io:rioiocp -statusfilename:$out.csv $Options"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend    
@@ -73,7 +73,7 @@ function test_iterations {
         [parameter(Mandatory=$true)]   [String] $Fname,
         [parameter(Mandatory=$true)]   [String] $Options
     )
-    $protoParam = if ($Proto -eq "udp") {"-u"} else {""};
+    $protoParam = if ($Proto -eq "udp") {"-protocol:udp"} else {""};
     for ($i=0; $i -lt $g_Config.Iterations; $i++) {
         # vary on port number
         [int] $portstart = $g_Config.StartPort + ($i * $g_Config.Iterations)
@@ -119,6 +119,9 @@ function test_ctsTraffic {
     )
     if ($null -ne $g_Config.Tcp) {
         test_protocol -OutDir $OutDir -Proto "tcp"
+    }
+    if ($null -ne $g_Config.Udp) {
+        test_protocol -OutDir $OutDir -Proto "udp"
     }
 } # test_ntttcp()
 

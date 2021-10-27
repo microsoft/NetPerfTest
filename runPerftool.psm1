@@ -149,7 +149,7 @@ $CreateZipScriptBlock = {
         [String] $Out
     )
 
-    LogWrite "Invoking Cmd - [io.compression.zipfile]::CreateFromDirectory($Src, $Out) "
+    # Write-Host "Invoking Cmd - [io.compression.zipfile]::CreateFromDirectory($Src, $Out) "
 
     if (Test-path $Out) {
         Remove-item $Out
