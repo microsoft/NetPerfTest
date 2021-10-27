@@ -358,7 +358,8 @@ param(
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Receiver" 
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Sender"
 
-        #Create dirs and subdirs for each of the supported tools
+        # Create dirs and subdirs for each of the supported tools
+        # Invoke-Command calls set to null in order to suppress unwanted output
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\cps\Mode0") 
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\cps\Mode0")
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\cps\Mode1")
@@ -445,7 +446,10 @@ param(
                 }
 
                 if(($Toolname -eq "ctsTraffic") -and ($checkSendProcessExit -eq $null) ) {
+                    # There's no time-based shutoff with ctstraffic servers, so recv machine will remain running until
+                    # we send it a task kill command
                     LogWrite "$Toolname exited on Src machine, proceeding to shut down on Dst machine"
+                    $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
                     break
                 }
             }
@@ -476,7 +480,7 @@ param(
             #Add sleep between before running the next command pair
             start-sleep -seconds $PollTimeInSeconds
             $i += 1
-        } 
+        }
 
         LogWrite "Test runs completed. Collecting results..."
 
