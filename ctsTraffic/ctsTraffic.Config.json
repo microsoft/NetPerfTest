@@ -7,11 +7,6 @@
             "Connections"   : [1, 64], 
             "Options"       : ""
         }, 
-        "udp" : {
-            "BufferLen"     : [4194304],
-            "Connections"   : [1, 64], 
-            "Options"       : ""
-        }, 
         "Runtime"  : 15
     },
 
@@ -44,12 +39,7 @@
             "BufferLen"     : [4194304],
             "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512], 
             "Options"       : ""
-        }, 
-        "udp" : {
-            "BufferLen"     : [4194304],
-            "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512], 
-            "Options"       : ""
-        }, 
+        },
         "Runtime"  : 25
     }
 }
