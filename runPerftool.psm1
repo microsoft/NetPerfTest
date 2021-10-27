@@ -228,7 +228,9 @@ Function ProcessCommands{
     [Parameter(Mandatory=$False)] [string]$Bcleanup=$True,
     [Parameter(Mandatory=$False)]$ZipResults=$True,
     [Parameter(Mandatory=$False)]$TimeoutValueInSeconds=90,
-    [Parameter(Mandatory=$False)]$PollTimeInSeconds=5
+    [Parameter(Mandatory=$False)]$PollTimeInSeconds=5,
+    [Parameter(Mandatory=$False)] [Switch] $BroadcastEvents,
+    [Parameter(Mandatory=$False)] [String] $BroadcastComputer
     )
 
     $recvComputerName = $DestIp
@@ -241,17 +243,16 @@ Function ProcessCommands{
     [String] $workingDir = $CommandsDir.TrimEnd("\")
 
     LogWrite "Processing ctsTraffic commands" $true 
-    ProcessToolCommands -Toolname "ctsTraffic" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds
+    ProcessToolCommands -Toolname "ctsTraffic" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -BroadcastEvents $BroadcastEvents -BroadcastComputer $BroadcastComputer
 
     LogWrite "Processing cps commands" $true
-    ProcessToolCommands -Toolname "cps" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds
+    ProcessToolCommands -Toolname "cps" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -BroadcastEvents $BroadcastEvents -BroadcastComputer $BroadcastComputer
 
     LogWrite "Processing ntttcp commands" $true
-    ProcessToolCommands -Toolname "ntttcp" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds
-
+    ProcessToolCommands -Toolname "ntttcp" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -BroadcastEvents $BroadcastEvents -BroadcastComputer $BroadcastComputer
 
     LogWrite "Processing latte commands" $true
-    ProcessToolCommands -Toolname "latte" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds
+    ProcessToolCommands -Toolname "latte" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -BroadcastEvents $BroadcastEvents -BroadcastComputer $BroadcastComputer
 
     LogWrite "ProcessCommands Done!" $true
     Move-Item -Path $Logfile -Destination "$workingDir" -Force -ErrorAction Ignore
@@ -312,7 +313,9 @@ param(
     [Parameter(Mandatory=$False)] [PSCredential] $RecvComputerCreds = [System.Management.Automation.PSCredential]::Empty,
     [Parameter(Mandatory=$True)] [bool]$BZip,
     [Parameter(Mandatory=$False)] [int] $TimeoutValueBetweenCommandPairs = 60,
-    [Parameter(Mandatory=$False)] [int] $PollTimeInSeconds = 5
+    [Parameter(Mandatory=$False)] [int] $PollTimeInSeconds = 5, 
+    [Parameter(Mandatory=$False)] [Boolean] $BroadcastEvents = $false,
+    [Parameter(Mandatory=$False)] [String] $BroadcastComputer
     )
     [bool] $gracefulCleanup = $False
 
@@ -407,6 +410,8 @@ param(
             #change the command to add path to tool
             $recvCmd = $recvCommands[$i]
             $sendCmd = $sendCommands[$i]
+            $unexpandedRecvCmd = $recvCmd
+
             $recvCmd =  $recvCmd -ireplace [regex]::Escape("$toolexe"), "$CommandsDir\$toolexe"
             $sendCmd =  $sendCmd -ireplace [regex]::Escape("$toolexe"), "$CommandsDir\$toolexe"
             $cmdPairCompleted = $false 
@@ -415,6 +420,20 @@ param(
             $recvCmd =  $recvCmd -ireplace [regex]::Escape($CommandsDir), "$CommandsDir\Receiver"
             LogWrite "Invoking Cmd - Machine: $recvComputerName Command: $recvCmd"
             LogWrite "Invoking Cmd $($i + 1) / $numCmds ..." $true
+
+            
+            if ($BroadcastEvents) {
+                try {
+                    if ($BroadcastComputer) {
+                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd -ComputerName $BroadcastComputer 
+                    } else {
+                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd
+                    }
+                } catch {
+                    LogWrite "Error writing to event log" $true 
+                }
+            }
+            
             $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRunToolCmd -ArgumentList $recvCmd 
 
             # Work here to invoke send commands
@@ -453,6 +472,19 @@ param(
                     break
                 }
             }
+
+            if ($BroadcastEvents) {
+                try {
+                    if ($BroadcastComputer) {
+                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1002 -Message $unexpandedRecvCmd -ComputerName $BroadcastComputer 
+                    } else {
+                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1002 -Message $unexpandedRecvCmd
+                    }
+                } catch {
+                    LogWrite "Error writing to event log" $true 
+                }
+            }
+
 
             LogWrite "Complete`n" $true
             $sw.Stop()

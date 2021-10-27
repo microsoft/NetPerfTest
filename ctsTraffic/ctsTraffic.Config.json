@@ -11,7 +11,7 @@
     },
 
     "CtsTrafficAzure": {
-        "Iterations" : 5,
+        "Iterations" : 1,
         "StartPort"  : 50000,
         "tcp" : {
             "BufferLen"     : [4194304],
