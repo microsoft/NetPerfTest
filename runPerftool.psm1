@@ -12,32 +12,50 @@ Param ([string]$logstring, [string] $echoToConsole=$false)
     Add-content $Logfile -value $timeStampLogString
 }
 
-# Certain tools like ntttcp have params that need to be added to the actual timeout value between command pairs
-# to prevent premature termination of the send/recv processes
-Function GetActualTimeOutValue
-{
-Param ([Int]$AdditionalTimeout, [string] $Line)
+Function GetOutputFileName {
+Param([string] $Line) 
 
-    [Int] $timeout = $AdditionalTimeout 
-    # currently we only bloat the timeout value with additional params for ntttcp. 
-    # as we onboard additional tools in the future, we will add tool specific logic here
+    $filename = ""
+    if ($Line -match "ctsTraffic") {
+        $filename = ($Line.Substring($Line.IndexOf("-statusfilename")).Split(" ")[0].Split("\")[-1])
+    } 
+    elseif ($Line -match "ntttcp") {
+        $filename = $Line.Substring($Line.IndexOf("-xml")).Split(" ")[1].Split("\")[-1] 
+    }
+
+    return $filename
+
+}
+Function GetCmdDuration {
+Param ([string] $Line) 
     if ($Line -match "ntttcp")
     {
         try {
             [Int] $warmup = ($Line.Substring($Line.IndexOf("-wu")+("-wu".Length)+1).Split(' ')[0])
             [Int] $cooldown = ($Line.Substring($Line.IndexOf("-cd")+("-cd".Length)+1).Split(' ')[0])
             [Int] $rumtime = ($Line.Substring($Line.IndexOf("-t")+("-t".Length)+1).Split(' ')[0])
-            $timeout += $warmup + $cooldown + $rumtime
+            return $warmup + $cooldown + $rumtime
         }
        catch {}
     } elseif ($Line -match "ctsTraffic") 
     {
         try {
             [Int] $runtime = [Int]($Line.Substring($Line.IndexOf("-timeLimit")).Split(" ")[0].Split(":")[1]) / 1000
+            return $runtime
         }
         catch {}
     }
-    return $timeout
+}
+
+
+# Certain tools like ntttcp have params that need to be added to the actual timeout value between command pairs
+# to prevent premature termination of the send/recv processes
+Function GetActualTimeOutValue
+{
+Param ([Int]$AdditionalTimeout, [string] $Line) 
+    # currently we only bloat the timeout value with additional params for ntttcp. 
+    # as we onboard additional tools in the future, we will add tool specific logic here
+    return $AdditionalTimeout + (GetCmdDuration -Line $Line) 
 }
 
 #===============================================
@@ -420,33 +438,45 @@ param(
             $recvCmd =  $recvCmd -ireplace [regex]::Escape($CommandsDir), "$CommandsDir\Receiver"
             LogWrite "Invoking Cmd - Machine: $recvComputerName Command: $recvCmd"
             LogWrite "Invoking Cmd $($i + 1) / $numCmds ..." $true
-
-            
-            if ($BroadcastEvents) {
-                try {
-                    if ($BroadcastComputer) {
-                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd -ComputerName $BroadcastComputer 
-                    } else {
-                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd
-                    }
-                } catch {
-                    LogWrite "Error writing to event log" $true 
-                }
-            }
-            
             $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRunToolCmd -ArgumentList $recvCmd 
-
+            
             # Work here to invoke send commands
             # Since we want the files to get generated under a subfolder, we replace the path to include the subfolder
             $sendCmd =  $sendCmd -ireplace [regex]::Escape($CommandsDir), "$CommandsDir\Sender"
             LogWrite "Invoking Cmd - Machine: $sendComputerName Command: $sendCmd"  
             $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRunToolCmd -ArgumentList $sendCmd
 
+            [int] $timeout = GetActualTimeOutValue -AdditionalTimeout $TimeoutValueBetweenCommandPairs -Line $sendCmd
+ 
+
+
+            if ($BroadcastEvents) {
+                [string] $outputFileName = GetOutputFileName -Line $sendCmd
+                [int] $duration = GetCmdDuration -Line $sendCmd
+                
+                $json = @{
+                    "outputFileName"    = $outputFileName
+                    "duration"          = $duration
+                } | ConvertTo-Json
+                $jsonBytes = [System.Text.Encoding]::Unicode.GetBytes($json)
+                
+                try { 
+                    if ($BroadcastComputer) {
+                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd -RawData $jsonBytes -ComputerName $BroadcastComputer -ErrorAction Stop
+                
+                    } else {
+                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd -RawData $jsonBytes -ErrorAction Stop
+                    }
+                } catch {
+                    LogWrite "Error writing to event log" $true 
+                }
+            } 
+            
             # non blocking loop to check if the process made a clean exit
 
             # Calculate actual timeout value.
             # For tools such as ntttcp, we may need to add additional #s for runtime, wu and cd times 
-            [int] $timeout = GetActualTimeOutValue -AdditionalTimeout $TimeoutValueBetweenCommandPairs -Line $sendCmd
+            
             LogWrite "Waiting for $timeout seconds ..."
             $sw.Reset()
             $sw.Start()
@@ -470,21 +500,8 @@ param(
                     LogWrite "$Toolname exited on Src machine, proceeding to shut down on Dst machine"
                     $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
                     break
-                }
-            }
-
-            if ($BroadcastEvents) {
-                try {
-                    if ($BroadcastComputer) {
-                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1002 -Message $unexpandedRecvCmd -ComputerName $BroadcastComputer 
-                    } else {
-                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1002 -Message $unexpandedRecvCmd
-                    }
-                } catch {
-                    LogWrite "Error writing to event log" $true 
-                }
-            }
-
+                } 
+            } 
 
             LogWrite "Complete`n" $true
             $sw.Stop()
