@@ -37,7 +37,7 @@ function test_recv {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ctstraffic.exe -listen:$g_DestIp -Port:$Port $Proto -verify:connection -transfer:0xffffffffffffffff -msgwaitall:on -io:rioiocp $Options"
+    [string] $cmd = "ctstraffic.exe -listen:$g_DestIp -Port:$Port $Proto -verify:connection -transfer:0xffffffffffffffff -msgwaitall:on -io:rioiocp -statusfilename:$out.csv $Options"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
