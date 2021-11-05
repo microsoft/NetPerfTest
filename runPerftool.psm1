@@ -21,7 +21,7 @@ Param([string] $Line)
     } 
     elseif ($Line -match "ntttcp") {
         $filename = $Line.Substring($Line.IndexOf("-xml")).Split(" ")[1].Split("\")[-1] 
-    }
+    } 
 
     return $filename
 
@@ -221,6 +221,17 @@ $CreateZipScriptBlock = {
     before cleaning up and moving to the next set of commands
     Default value: 90 seconds
 
+.PARAMETER PollTimeInSeconds
+    Optional parameter to configure the amount of time the tool waits (in seconds) before waking up to check if the TimeoutValueBetweenCommandPairs period has elapsed
+
+.PARAMETER TransmitEvents
+    Optional switch to enable the transmission of event log entries to the local or a remote computer. These event logs can be used
+    to synchronize other tools with NPT commands.
+
+.PARAMETER TransmitComputer
+    Optional parameter to specify a remote computer to transmit events to. If -TransmitEvents is enabled but not -TransmitComputer is 
+    specified then NPT will attempt to write to a local event log. 
+
 .DESCRIPTION
     Please run SetupTearDown.ps1 -Setup on the DestIp and SrcIp machines independently to help with PSRemoting setup
     This function is dependent on the output of PERFTEST.PS1 function
@@ -247,8 +258,8 @@ Function ProcessCommands{
     [Parameter(Mandatory=$False)]$ZipResults=$True,
     [Parameter(Mandatory=$False)]$TimeoutValueInSeconds=90,
     [Parameter(Mandatory=$False)]$PollTimeInSeconds=5,
-    [Parameter(Mandatory=$False)] [Switch] $BroadcastEvents,
-    [Parameter(Mandatory=$False)] [String] $BroadcastComputer
+    [Parameter(Mandatory=$False, ParameterSetName="Transmit")] [Switch] $TransmitEvents,
+    [Parameter(Mandatory=$False, ParameterSetName="Transmit")] [String] $TransmitComputer
     )
 
     $recvComputerName = $DestIp
@@ -261,16 +272,16 @@ Function ProcessCommands{
     [String] $workingDir = $CommandsDir.TrimEnd("\")
 
     LogWrite "Processing ctsTraffic commands" $true 
-    ProcessToolCommands -Toolname "ctsTraffic" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -BroadcastEvents $BroadcastEvents -BroadcastComputer $BroadcastComputer
+    ProcessToolCommands -Toolname "ctsTraffic" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEvents $TransmitEvents -TransmitComputer $TransmitComputer
 
     LogWrite "Processing cps commands" $true
-    ProcessToolCommands -Toolname "cps" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -BroadcastEvents $BroadcastEvents -BroadcastComputer $BroadcastComputer
+    ProcessToolCommands -Toolname "cps" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEvents $TransmitEvents -TransmitComputer $TransmitComputer
 
     LogWrite "Processing ntttcp commands" $true
-    ProcessToolCommands -Toolname "ntttcp" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -BroadcastEvents $BroadcastEvents -BroadcastComputer $BroadcastComputer
+    ProcessToolCommands -Toolname "ntttcp" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEvents $TransmitEvents -TransmitComputer $TransmitComputer
 
     LogWrite "Processing latte commands" $true
-    ProcessToolCommands -Toolname "latte" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -BroadcastEvents $BroadcastEvents -BroadcastComputer $BroadcastComputer
+    ProcessToolCommands -Toolname "latte" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEvents $TransmitEvents -TransmitComputer $TransmitComputer
 
     LogWrite "ProcessCommands Done!" $true
     Move-Item -Path $Logfile -Destination "$workingDir" -Force -ErrorAction Ignore
@@ -319,7 +330,16 @@ Function ProcessCommands{
 
 .PARAMETER PollTimeInSeconds
     Optional parameter to configure the amount of time the tool waits (in seconds) before waking up to check if the TimeoutValueBetweenCommandPairs period has elapsed
-#>
+
+.PARAMETER TransmitEvents
+    Optional switch to enable the transmission of event log entries to the local or a remote computer. These event logs can be used
+    to synchronize other tools with NPT commands.
+
+.PARAMETER TransmitComputer
+    Optional parameter to specify a remote computer to transmit events to. If -TransmitEvents is enabled but not -TransmitComputer is 
+    specified then NPT will attempt to write to a local event log. 
+
+    #>
 Function ProcessToolCommands{
 param(
     [Parameter(Mandatory=$True)] [string]$RecvComputerName,
@@ -332,8 +352,8 @@ param(
     [Parameter(Mandatory=$True)] [bool]$BZip,
     [Parameter(Mandatory=$False)] [int] $TimeoutValueBetweenCommandPairs = 60,
     [Parameter(Mandatory=$False)] [int] $PollTimeInSeconds = 5, 
-    [Parameter(Mandatory=$False)] [Boolean] $BroadcastEvents = $false,
-    [Parameter(Mandatory=$False)] [String] $BroadcastComputer
+    [Parameter(Mandatory=$False] [Boolean] $TransmitEvents,
+    [Parameter(Mandatory=$False)] [String] $TransmitComputer
     )
     [bool] $gracefulCleanup = $False
 
@@ -450,7 +470,7 @@ param(
  
 
 
-            if ($BroadcastEvents) {
+            if ($TransmitEvents) {
                 [string] $outputFileName = GetOutputFileName -Line $sendCmd
                 [int] $duration = GetCmdDuration -Line $sendCmd
                 
@@ -461,8 +481,8 @@ param(
                 $jsonBytes = [System.Text.Encoding]::Unicode.GetBytes($json)
                 
                 try { 
-                    if ($BroadcastComputer) {
-                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd -RawData $jsonBytes -ComputerName $BroadcastComputer -ErrorAction Stop
+                    if ($TransmitComputer) {
+                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd -RawData $jsonBytes -ComputerName $TransmitComputer -ErrorAction Stop
                 
                     } else {
                         Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd -RawData $jsonBytes -ErrorAction Stop
