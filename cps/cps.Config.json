@@ -13,16 +13,7 @@
     },
 
     "CpsAzure": {
-        "Iterations": 5,
-        "Port": 50000,
-        "Threads": [1, 8, 64],
-        "ConnectionsPerThread": [1, 2],
-        "ConnectionDurationMS": [1, 1000],
-        "DataTransferMode": [1, 2],
-
-        "Options": "",
-        "Warmup": 2,
-        "Runtime": 90
+        $null
     },
 
     "CpsDetail": {
