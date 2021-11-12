@@ -440,6 +440,9 @@ param(
             LogWrite "Invoking Cmd $($i + 1) / $numCmds ..." $true
             $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRunToolCmd -ArgumentList $recvCmd 
             
+            # Fix for intermittent race condition where the Send process gets lauched before Recv and the test bails out because the handshake fails
+            start-sleep -seconds $PollTimeInSeconds
+
             # Work here to invoke send commands
             # Since we want the files to get generated under a subfolder, we replace the path to include the subfolder
             $sendCmd =  $sendCmd -ireplace [regex]::Escape($CommandsDir), "$CommandsDir\Sender"
