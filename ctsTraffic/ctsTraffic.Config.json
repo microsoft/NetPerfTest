@@ -11,7 +11,14 @@
     },
 
     "CtsTrafficAzure": {
-        $null
+        "Iterations": 0,
+        "StartPort": 50000,
+        "tcp" : {
+            "BufferLen"     : [],
+            "Connections"   : [], 
+            "Options"       : ""
+        }, 
+        "Runtime"  : 15
     },
 
     "CtsTrafficDetail": {
