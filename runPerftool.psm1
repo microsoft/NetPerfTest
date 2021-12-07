@@ -179,6 +179,14 @@ $CreateZipScriptBlock = {
 } # $CreateZipScriptBlock()
 
 
+$WriteToRemoteEventLog = {
+    param(
+        [String] $Command,
+        $Data
+    )
+    Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $Command -RawData $Data
+}
+
 <#
 .SYNOPSIS
     This function reads an input file of commands and orchestrates the execution of these commands on remote machines.
@@ -224,13 +232,26 @@ $CreateZipScriptBlock = {
 .PARAMETER PollTimeInSeconds
     Optional parameter to configure the amount of time the tool waits (in seconds) before waking up to check if the TimeoutValueBetweenCommandPairs period has elapsed
 
-.PARAMETER TransmitEvents
-    Optional switch to enable the transmission of event log entries to the local or a remote computer. These event logs can be used
+.PARAMETER TransmitEventsLocally
+    Optional switch to enable the transmission of event log entries to the local computer. These event logs can be used
     to synchronize other tools with NPT commands.
 
-.PARAMETER TransmitComputer
-    Optional parameter to specify a remote computer to transmit events to. If -TransmitEvents is enabled but not -TransmitComputer is 
-    specified then NPT will attempt to write to a local event log. 
+.PARAMETER TransmitEventsRemotely
+    Optional switch to enable the transmission of event log entries to a remote computer. These event logs can be used
+    to synchronize other tools with NPT commands.
+
+.PARAMETER TransmitIP
+    Mandatory (when run with TransmitEventsRemotely switch enabled) parameter used to specify the IP address of the machine 
+    which should receive event log transmissions. 
+
+.PARAMETER TransmitUserName
+    Mandatory (when run with TransmitEventsRemotely switch enabled) parameter. 
+    Gets domain\username needed to connect to TransmitIp Machine 
+
+.PARAMETER TransmitPassword
+    Mandatory (when run with TransmitEventsRemotely switch enabled) parameter. 
+    Gets password needed to connect to TansmitIp Machine. Password will be stored 
+    as Secure String and chars will not be displayed on the console.
 
 .DESCRIPTION
     Please run SetupTearDown.ps1 -Setup on the DestIp and SrcIp machines independently to help with PSRemoting setup
@@ -258,8 +279,11 @@ Function ProcessCommands{
     [Parameter(Mandatory=$False)]$ZipResults=$True,
     [Parameter(Mandatory=$False)]$TimeoutValueInSeconds=90,
     [Parameter(Mandatory=$False)]$PollTimeInSeconds=5,
-    [Parameter(Mandatory=$False, ParameterSetName="Transmit")] [Switch] $TransmitEvents,
-    [Parameter(Mandatory=$False, ParameterSetName="Transmit")] [String] $TransmitComputer
+    [Parameter(Mandatory=$false, ParameterSetName="Transmit")] [Switch] $TransmitEventsLocally,
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [Switch] $TransmitEventsRemotely,
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [String] $TransmitIP,
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [String] $TransmitUserName,
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [SecureString] $TransmitPassword  
     )
 
     $recvComputerName = $DestIp
@@ -269,19 +293,25 @@ Function ProcessCommands{
 
     [PSCredential] $recvIPCreds = New-Object System.Management.Automation.PSCredential($DestIpUserName, $DestIpPassword)
 
+    [pscredential] $transmitIPCreds = $null 
+
+    if ($TransmitEventsRemotely) {
+        [pscredential] $transmitIPCreds = New-Object System.Management.Automation.PSCredential($TransmitUserName, $TransmitPassword)
+    }
+
     [String] $workingDir = $CommandsDir.TrimEnd("\")
 
     LogWrite "Processing ctsTraffic commands" $true 
-    ProcessToolCommands -Toolname "ctsTraffic" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEvents $TransmitEvents -TransmitComputer $TransmitComputer
+    ProcessToolCommands -Toolname "ctsTraffic" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
 
     LogWrite "Processing cps commands" $true
-    ProcessToolCommands -Toolname "cps" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEvents $TransmitEvents -TransmitComputer $TransmitComputer
-
+    ProcessToolCommands -Toolname "cps" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
+    
     LogWrite "Processing ntttcp commands" $true
-    ProcessToolCommands -Toolname "ntttcp" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEvents $TransmitEvents -TransmitComputer $TransmitComputer
+    ProcessToolCommands -Toolname "ntttcp" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
 
     LogWrite "Processing latte commands" $true
-    ProcessToolCommands -Toolname "latte" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEvents $TransmitEvents -TransmitComputer $TransmitComputer
+    ProcessToolCommands -Toolname "latte" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
 
     LogWrite "ProcessCommands Done!" $true
     Move-Item -Path $Logfile -Destination "$workingDir" -Force -ErrorAction Ignore
@@ -331,13 +361,19 @@ Function ProcessCommands{
 .PARAMETER PollTimeInSeconds
     Optional parameter to configure the amount of time the tool waits (in seconds) before waking up to check if the TimeoutValueBetweenCommandPairs period has elapsed
 
-.PARAMETER TransmitEvents
-    Optional switch to enable the transmission of event log entries to the local or a remote computer. These event logs can be used
+.PARAMETER TransmitEventsLocally
+    Optional switch to enable the transmission of event log entries to the local computer. These event logs can be used
     to synchronize other tools with NPT commands.
 
-.PARAMETER TransmitComputer
-    Optional parameter to specify a remote computer to transmit events to. If -TransmitEvents is enabled but not -TransmitComputer is 
-    specified then NPT will attempt to write to a local event log. 
+.PARAMETER TransmitEventsRemotely
+    Optional switch to enable the transmission of event log entries to a remote computer. These event logs can be used
+    to synchronize other tools with NPT commands.
+
+.PARAMETER TransmitComputerName
+    The IP address of the remote machine which will receive event log transmissions.
+ 
+.PARAMETER TransmitComputerCreds
+    Optional PSCredentials to connect to the machine which will receive event log transmissions.
 
     #>
 Function ProcessToolCommands{
@@ -352,9 +388,12 @@ param(
     [Parameter(Mandatory=$True)] [bool]$BZip,
     [Parameter(Mandatory=$False)] [int] $TimeoutValueBetweenCommandPairs = 60,
     [Parameter(Mandatory=$False)] [int] $PollTimeInSeconds = 5, 
-    [Parameter(Mandatory=$False] [Boolean] $TransmitEvents,
-    [Parameter(Mandatory=$False)] [String] $TransmitComputer
+    [Parameter(Mandatory=$False)] [Boolean] $TransmitEventsLocally=$false,
+    [Parameter(Mandatory=$False)] [Boolean] $TransmitEventsRemotely=$false,
+    [Parameter(Mandatory=$False)] [String] $TransmitComputerName = "",  
+    [Parameter(Mandatory=$False)] [pscredential] $TransmitComputerCreds = [System.Management.Automation.PSCredential]::Empty
     )
+
     [bool] $gracefulCleanup = $False
 
     $toolpath = ".\{0}" -f $Toolname
@@ -368,6 +407,11 @@ param(
     $sendCredSplat = @{}
     if ($SendComputerCreds -ne [System.Management.Automation.PSCredential]::Empty) {
         $sendCredSplat['Credential'] = $SendComputerCreds
+    }
+
+    $transmitCredSplat = @{}
+    if ($TransmitComputerCreds -ne [System.Management.Automation.PSCredential]::Empty) {
+        $transmitCredSplat['Credential'] = $TransmitComputerCreds
     }
 
     try {
@@ -386,6 +430,16 @@ param(
             LogWrite "Error connecting to Host: $($SendComputerName)"
             return
         }
+
+        $transmitPSSession = $null 
+        # Establish the Remote PS session with Event Transmit Receiver
+        if ($TransmitEventsRemotely) {
+            $transmitPSSession = New-PSSession -ComputerName $TransmitComputerName @transmitCredSplat 
+            if ($transmitPSSession -eq $null) {
+                LogWrite "Error connecting to Host: $($TransmitComputerName)"
+                return 
+            }
+        }   
 
         # Construct the input file to read for commands.
         $sendCmdFile = Join-Path -Path $CommandsDir -ChildPath "\$Toolname\$Toolname.Commands.Send.txt"
@@ -470,7 +524,7 @@ param(
  
 
 
-            if ($TransmitEvents) {
+            if ($TransmitEventsLocally -or $TransmitEventsRemotely) {
                 [string] $outputFileName = GetOutputFileName -Line $sendCmd
                 [int] $duration = GetCmdDuration -Line $sendCmd
                 
@@ -480,15 +534,11 @@ param(
                 } | ConvertTo-Json
                 $jsonBytes = [System.Text.Encoding]::Unicode.GetBytes($json)
                 
-                try { 
-                    if ($TransmitComputer) {
-                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd -RawData $jsonBytes -ComputerName $TransmitComputer -ErrorAction Stop
-                
-                    } else {
-                        Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd -RawData $jsonBytes -ErrorAction Stop
-                    }
-                } catch {
-                    LogWrite "Error writing to event log" $true 
+                if ($TransmitEventsLocally) {
+                    Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd -RawData $jsonBytes -ErrorAction Stop
+                    
+                } else {
+                    $null = Invoke-Command -Session $transmitPSSession -ScriptBlock $WriteToRemoteEventLog -ArgumentList ($unexpandedRecvCmd, $jsonBytes)
                 }
             } 
             
@@ -625,8 +675,11 @@ param(
 
         LogWrite "Cleaning up Remote PS Sessions"
         # Clean up the PS Sessions
-        Remove-PSSession $sendPSSession  -ErrorAction Ignore
-        Remove-PSSession $recvPSSession  -ErrorAction Ignore
+        Remove-PSSession $sendPSSession -ErrorAction Ignore
+        Remove-PSSession $recvPSSession -ErrorAction Ignore
+
+        # Clean up event transmission PS session, if one was opened
+        if ($null -ne $transmitPSSession) {Remove-PSSession $transmitPSSession -ErrorAction Ignore}
 
     } #finally
 } # ProcessToolCommands()
