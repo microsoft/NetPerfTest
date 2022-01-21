@@ -5,6 +5,7 @@
         "Threads": [1, 8, 64],
         "ConnectionsPerThread": [1, 2],
         "ConnectionDurationMS": [1, 1000],
+        "MaxPendingRequests" : [1],
         "DataTransferMode": [1, 2],
 
         "Options": "",
@@ -13,15 +14,26 @@
     },
 
     "CpsAzure": {
-        $null
-    },
-
-    "CpsDetail": {
-        "Iterations": 3,
+        "Iterations": 1,
         "Port": 50000,
         "Threads": [1, 8, 64],
         "ConnectionsPerThread": [1, 2],
         "ConnectionDurationMS": [1, 1000],
+        "MaxPendingRequests" : [1],
+        "DataTransferMode": [1, 2],
+
+        "Options": "",
+        "Warmup": 2,
+        "Runtime": 10
+    },
+
+    "CpsDetail": {
+        "Iterations": 1,
+        "Port": 50000,
+        "Threads": [1, 8, 64],
+        "ConnectionsPerThread": [1, 2],
+        "ConnectionDurationMS": [1, 1000],
+        "MaxPendingRequests" : [1],
         "DataTransferMode": [1, 2],
 
         "Options": "",
@@ -30,15 +42,16 @@
     },
 
     "CpsMax": {
-        "Iterations": 5,
+        "Iterations": 1,
         "Port": 50000,
         "Threads": [1, 8, 64],
         "ConnectionsPerThread": [1, 2],
         "ConnectionDurationMS": [1, 1000],
+        "MaxPendingRequests" : [1],
         "DataTransferMode": [1, 2],
 
         "Options": "",
-        "Warmup": 5,
-        "Runtime": 15
+        "Warmup": 2,
+        "Runtime": 10
     }
 }
