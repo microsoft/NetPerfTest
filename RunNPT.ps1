@@ -133,7 +133,7 @@ if ($TransmitEventsLocally) {
     ProcessCommands @ProcessCommandsParams -TransmitEventsLocally
 } 
 elseif ($TransmitEventsRemotely) {
-    ProcessCommands @ProcessCommandsParams -TransmitEventsRemotely -TransmitIP $TransmitIP -TransmitUserName
+    ProcessCommands @ProcessCommandsParams -TransmitEventsRemotely -TransmitIP $TransmitIP -TransmitUserName $TransmitUserName -TransmitPassword $TransmitPassword
 } 
 else {
     ProcessCommands @ProcessCommandsParams
