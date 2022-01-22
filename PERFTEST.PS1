@@ -1,36 +1,28 @@
 #===============================================
 # Script Input Parameters Enforcement
 #===============================================
-Param( 
-    [parameter(Mandatory=$true)]  [string] $SrcIp, 
-    [parameter(Mandatory=$true)]  [string] $DestIp,
-    [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-    
+Param(
+    [parameter(Mandatory=$false)] [switch] $Diag = $false,
     [ValidateSet("Default", "Azure", "Detail", "Max")]
     [parameter(Mandatory=$false)] [string] $Config = "Default",
-    [parameter(Mandatory=$false)]  [Array] $ToolList = @("ntttcp", "latte", "cps", "ctstraffic")
+    [parameter(Mandatory=$true)]  [string] $DestIp,
+    [parameter(Mandatory=$true)]  [string] $SrcIp,
+    [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
 )
-
 $scriptName = $MyInvocation.MyCommand.Name 
-$SupportedTools = @("ntttcp", "latte", "cps", "ctstraffic")
-$start   = Get-Date
-$version = "2020.09.13.0" # Version within date context
-
-
 
 function input_display {
     $g_path = Get-Location
 
-    Write-Output "============================================"
-    Write-Output "$g_path\$scriptName"
-    Write-Output " Date: $start"
-    Write-Output " Version: $version" 
-    Write-Output " Inputs:" 
-    Write-Output "  -Config     = $Config"
-    Write-Output "  -DestIp     = $DestIp"
-    Write-Output "  -SrcIp      = $SrcIp"
-    Write-Output "  -OutDir     = $OutDir"
-    Write-Output "============================================"
+    Write-Host "============================================"
+    Write-Host "$g_path\$scriptName"
+    Write-Host " Inputs:"
+    Write-Host "  -Diag       = $Diag"
+    Write-Host "  -Config     = $Config"
+    Write-Host "  -DestIp     = $DestIp"
+    Write-Host "  -SrcIp      = $SrcIp"
+    Write-Host "  -OutDir     = $OutDir"
+    Write-Host "============================================"
 } # input_display()
 
 #===============================================
@@ -82,25 +74,6 @@ function env_destroy {
     }
 } # env_destroy()
 
-
-function normalize_toollist {
-    Param(
-        [Parameter(Mandatory=$true)] [Array] $ToolList
-    )
-
-    for ($i = 0; $i -lt $ToolList.Count; $i += 1) {
-        $ToolList[$i] = $ToolList[$i].ToLower()
-        if (-not ($ToolList[$i] -in $SupportedTools)) {
-            $toolstr = ""
-            foreach ($tool in $SupportedTools) {$toolstr += "`t$tool`n"}
-            Write-Error "NPT does not support the tool: $($ToolList[$i])`nSupported Tools:`n$($toolstr)"
-            Exit 
-        }
-    }
-
-    return $ToolList
-}
-
 #===============================================
 # External Functions - Main Program
 #===============================================
@@ -110,39 +83,39 @@ function test_main {
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" ,
-        [parameter(Mandatory=$false)] [Array] $ToolList
+        [parameter(Mandatory=$false)] [switch] $Diag = $false
     )
-    
-    if (-not $silent) {input_display}
+    Clear-Host
+    input_display
 
+    $start   = Get-Date
+    $version = "2020.09.13.0" # Version within date context
+
+    Write-Host $start
+    Write-Host $version
+
+    [bool]   $g_diag      = $Diag
     [string] $g_config    = $Config
     [string] $g_DestIp    = $DestIp
     [string] $g_SrcIp     = $SrcIp
 
-    $workDir = env_normalize -OutDir $OutDir 
+    $workDir = env_normalize -OutDir $OutDir
+    Write-Host $workDir
 
     env_destroy -OutDir $workDir
     env_create  -OutDir $workDir
 
-    $ToolList = normalize_toollist -ToolList $ToolList
-    
-    if ("ctstraffic" -in $ToolList) {
+
+    if ($g_diag) {
+        # More work needed here.  Specifically to generate the commands to file and integrate with execution.
+        #.\diag\Network.Diagnosis.ps1 -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir
+    }else {
         & "$PSScriptRoot\ctsTraffic\ctsTraffic.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
-    }
-    if ("cps" -in $ToolList) {
         & "$PSScriptRoot\cps\cps.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
-    }
-    if ("latte" -in $ToolList) {
         & "$PSScriptRoot\latte\latte.TESTGEN.ps1"   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
-    }
-    if ("ntttcp" -in $ToolList) {
         & "$PSScriptRoot\ntttcp\ntttcp.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
-    } 
-        
-    
-} test_main -Config $Config -DestIp $DestIp -SrcIp $SrcIp -OutDir $OutDir -ToolList $ToolList
-
-
+    }
+} test_main @PSBoundParameters # Entry Point
 
 # TODO
 # =============================================================

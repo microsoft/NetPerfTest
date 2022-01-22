@@ -12,14 +12,14 @@ $scriptName = $MyInvocation.MyCommand.Name
 function input_display {
     $g_path = Get-Location
 
-    Write-Output "============================================"
-    Write-Output "$g_path\$scriptName"
-    Write-Output " Inputs:"
-    Write-Output "  -Config     = $Config"
-    Write-Output "  -DestIp     = $DestIp"
-    Write-Output "  -SrcIp      = $SrcIp"
-    Write-Output "  -OutDir     = $OutDir"
-    Write-Output "============================================"
+    Write-Host "============================================"
+    Write-Host "$g_path\$scriptName"
+    Write-Host " Inputs:"
+    Write-Host "  -Config     = $Config"
+    Write-Host "  -DestIp     = $DestIp"
+    Write-Host "  -SrcIp      = $SrcIp"
+    Write-Host "  -OutDir     = $OutDir"
+    Write-Host "============================================"
 } # input_display()
 
 #===============================================
@@ -30,16 +30,16 @@ function banner {
     Param(
         [parameter(Mandatory=$true)] [String] $Msg
     )
-    Write-Output "`n==========================================================================="
-    Write-Output "| $Msg"
-    Write-Output "==========================================================================="
+    Write-Host "==========================================================================="
+    Write-Host "| $Msg"
+    Write-Host "==========================================================================="
 } # banner()
 
 function test_recv {
     [string] $cmd = "latte.exe -ga"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
-    Write-Output   $cmd 
+    Write-Host   $cmd 
 } # test_recv()
 
 function test_send {
@@ -70,7 +70,7 @@ function test_send {
     [string] $cmd = "latte.exe -sa -c -a $g_DestIp" + ":"  + "$Port $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -so $dumpOption > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
-    Write-Output   $cmd 
+    Write-Host   $cmd 
 } # test_send()
 
 function test_protocol {
@@ -124,13 +124,13 @@ function test_latte_generate {
         # Iteration Tests capturing each transaction time
         # - Measures over input samples
         if ($g_Config.PingIterations -gt 0) {
-            Write-Output "" # banner -Msg "Iteration Tests: [$Protocol] operations per bounded iterations"
+            banner -Msg "Iteration Tests: [$Protocol] operations per bounded iterations"
             test_protocol -Iter "-i $($g_Config.PingIterations)" -Protocol $Protocol -OutDirOpt $dirOptimized -OutDirDefault $dirDefault -Fname "$Protocol.i$($g_Config.PingIterations)"
         }
         # Transactions per 10s
         # - Measures operations per bounded time.
         if ($g_Config.Time -gt 0) {
-            Write-Output "" # banner -Msg "Time Tests: [$Protocol] operations per bounded time"
+            banner -Msg "Time Tests: [$Protocol] operations per bounded time"
             test_protocol -Iter "-t $($g_Config.Time)" -Protocol $Protocol -OutDirOpt $dirOptimized -OutDirDefault $dirDefault -Fname "$Protocol.t$($g_Config.Time)" -NoDumpParam $true
         }
     }
@@ -141,7 +141,7 @@ function validate_config {
     $int_vars = @('Iterations', 'StartPort', 'Time', 'PingIterations')
     foreach ($var in $int_vars) {
         if (($null -eq $g_Config.($var)) -or ($g_Config.($var) -lt 0)) {
-            Write-Output "$var is required and must be greater than or equal to 0"
+            Write-Host "$var is required and must be greater than or equal to 0"
             $isValid = $false
         }
     }
@@ -149,24 +149,24 @@ function validate_config {
     if ($null -ne $g_Config.Protocol) {
         foreach ($proto in $g_Config.Protocol) {
             if (-Not $valid_protocols.Contains($proto)) {
-                Write-Output "$proto is not a valid protocol"
+                Write-Host "$proto is not a valid protocol"
                 $isValid = $false
             }
         }
     } else {
-        Write-Output "Protocol cannot be null"
+        Write-Host "Protocol cannot be null"
         $isValid = $false
     }
     $valid_send = @('b', 'nb', 'ove', 'ovc', 'ovp', 'sel')
     if ($null -ne $g_Config.SendMethod) {
         foreach ($snd in $g_Config.SendMethod) {
             if (-Not $valid_send.Contains($snd)) {
-                Write-Output "$snd is not a valid send method"
+                Write-Host "$snd is not a valid send method"
                 $isValid = $false
             }
         }
     } else {
-        Write-Output "SendMethod cannot be null"
+        Write-Host "SendMethod cannot be null"
         $isValid = $false
     }
     return $isValid
@@ -183,16 +183,16 @@ function test_main {
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
     )
     try {
-        # input_display
+        input_display
         # get config variables
         $allConfig = Get-Content -Path "$PSScriptRoot\latte.Config.json" | ConvertFrom-Json
         [Object] $g_Config     = $allConfig.("Latte$Config")
         if ($null -eq $g_Config) {
-            Write-Output "Latte$Config does not exist in .\latte\latte.Config.json. Please provide a valid config"
+            Write-Host "Latte$Config does not exist in .\latte\latte.Config.json. Please provide a valid config"
             Throw
         }
         if (-Not (validate_config)) {
-            Write-Output "Latte$Config is not a valid config"
+            Write-Host "Latte$Config is not a valid config"
             Throw
         }
         [string] $g_DestIp     = $DestIp.Trim()
@@ -206,10 +206,10 @@ function test_main {
         
         # Optional - Edit spaces in output path for Invoke-Expression compatibility
         # $dir  = $dir  -replace ' ','` '
-        banner -Msg "Latte Tests"
+
         test_latte_generate -OutDir $dir
     } catch {
-        Write-Output "Unable to generate LATTE commands"
-        Write-Output "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
+        Write-Host "Unable to generate LATTE commands"
+        Write-Host "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
     }
 } test_main @PSBoundParameters # Entry Point

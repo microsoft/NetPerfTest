@@ -14,14 +14,14 @@ $scriptName = $MyInvocation.MyCommand.Name
 function input_display {
     $g_path = Get-Location
 
-    Write-Output "============================================"
-    Write-Output "$g_path\$scriptName"
-    Write-Output " Inputs:"
-    Write-Output "  -Config     = $Config"
-    Write-Output "  -DestIp     = $DestIp"
-    Write-Output "  -SrcIp      = $SrcIp"
-    Write-Output "  -OutDir     = $OutDir"
-    Write-Output "============================================"
+    Write-Host "============================================"
+    Write-Host "$g_path\$scriptName"
+    Write-Host " Inputs:"
+    Write-Host "  -Config     = $Config"
+    Write-Host "  -DestIp     = $DestIp"
+    Write-Host "  -SrcIp      = $SrcIp"
+    Write-Host "  -OutDir     = $OutDir"
+    Write-Host "============================================"
 } # input_display()
 
 function banner {
@@ -29,9 +29,9 @@ function banner {
     Param(
         [parameter(Mandatory=$true)] [String] $Msg
     )
-    Write-Output "`n==========================================================================="
-    Write-Output "| $Msg"
-    Write-Output "==========================================================================="
+    Write-Host "==========================================================================="
+    Write-Host "| $Msg"
+    Write-Host "==========================================================================="
 } # banner()
 
 function test_client {
@@ -43,36 +43,34 @@ function test_client {
         [Parameter(Mandatory=$true)] [String] $Threads,
         [Parameter(Mandatory=$true)] [String] $ConnectionsPerThread,
         [Parameter(Mandatory=$true)] [String] $ConnectionDurationMS,
-        [Parameter(Mandatory=$true)] [String] $DataTransferMode, 
-        [Parameter(Mandatory=$true)] [String] $MaxPendingRequests
+        [Parameter(Mandatory=$true)] [String] $DataTransferMode
     )
 
-    [String] $out = Join-Path $OutDir "send.$Filename"
+    [String] $out = Join-Path $OutDir "client.$Filename"
 
     $thread_params = "-r $Threads $g_SrcIp,$($g_Config.Port),$g_DestIp,$($g_Config.Port),$ConnectionsPerThread,$ConnectionsPerThread,$ConnectionDurationMS,$DataTransferMode"
     [String] $cmd = "cps.exe -c $thread_params -wt $($g_Config.Warmup) -t $($g_Config.Runtime) -o $out.txt $($g_Config.Options)"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
-    Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
-    Write-Output   $cmd
+    Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
+    Write-Host   $cmd
 } # test_recv()
 
 function test_server {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory=$true)] [String] $OutDir,
-        [Parameter(Mandatory=$true)] [String] $Filename,
-        [Parameter(Mandatory=$true)] [String] $Threads
+        [Parameter(Mandatory=$true)] [String] $Filename
     )
 
-    [String] $out = Join-Path $OutDir "recv.$Filename"
+    [String] $out = Join-Path $OutDir "server.$Filename"
 
-    $thread_params = "-r $Threads $g_DestIp,$($g_Config.Port)"
+    $thread_params = "$g_DestIp,$($g_Config.Port)"
     [String] $cmd = "cps.exe -s $thread_params -wt $($g_Config.Warmup) -t $($g_Config.Runtime) -o $out.txt $($g_Config.Options)"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
-    Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv  
-    Write-Output   $cmd 
+    Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend    
+    Write-Host   $cmd 
 } # test_send()
 
 function test_iterations {
@@ -84,15 +82,13 @@ function test_iterations {
         [Parameter(Mandatory=$true)] [String] $Threads,
         [Parameter(Mandatory=$true)] [String] $ConnectionsPerThread,
         [Parameter(Mandatory=$true)] [String] $ConnectionDurationMS,
-        [Parameter(Mandatory=$true)] [String] $DataTransferMode,
-        [Parameter(Mandatory=$true)] [String] $MaxPendingRequests
+        [Parameter(Mandatory=$true)] [String] $DataTransferMode
     )
 
     for ($i=0; $i -lt $g_Config.Iterations; $i++) {
         test_client -OutDir $OutDir -Filename "$Filename.iter$i" -Threads $Threads `
-                    -ConnectionsPerThread $ConnectionsPerThread -ConnectionDurationMS $ConnectionDurationMS `
-                    -DataTransferMode $DataTransferMode -MaxPendingRequests $MaxPendingRequests
-        test_server -OutDir $OutDir -Filename "$Filename.iter$i" -Threads $Threads
+                    -ConnectionsPerThread $ConnectionsPerThread -ConnectionDurationMS $ConnectionDurationMS -DataTransferMode $DataTransferMode
+        test_server -OutDir $OutDir -Filename "$Filename.iter$i"
     }
 } # test_iterations()
 
@@ -104,18 +100,15 @@ function test_cps {
 
     # Mode is the only option with a finite set of values.
     foreach ($m in $g_Config.DataTransferMode) {
-        Write-Output "" # banner -Msg "Mode $m Tests"
+        banner -Msg "Mode$m Tests"
         $dir = Join-Path $OutDir "Mode$m"
         $null = New-Item -ItemType directory -Path $dir
 
         foreach ($t in $g_Config.Threads) {
             foreach ($c in $g_Config.ConnectionsPerThread) {
                 foreach ($d in $g_Config.ConnectionDurationMS) {
-                    foreach ($p in $g_config.MaxPendingRequests) {
-                        test_iterations -OutDir $dir -Filename "t$t.c$c.p$p.d$d.m$m" -Threads $t `
-                                    -ConnectionsPerThread $c -ConnectionDurationMS $d `
-                                    -DataTransferMode $m -MaxPendingRequests $p
-                    }
+                    test_iterations -OutDir $dir -Filename "$t`x$c.d$d.mode$m" -Threads $t `
+                                    -ConnectionsPerThread $p -ConnectionDurationMS $d -DataTransferMode $m
                 }
             }
         }
@@ -131,7 +124,7 @@ function validate_config {
         $invalid = $g_Config.$var | where {$_ -lt 0}
 
         if ($invalid -or ($null -eq $g_Config.$var)) {
-            Write-Output "$var is required and cannot be negative."
+            Write-Host "$var is required and cannot be negative."
             $isValid = $false
         }
     }
@@ -140,7 +133,7 @@ function validate_config {
     $invalid = $g_Config.DataTransferMode | where {$_ -notin $valid_DataTransferMode}
 
     if ($invalid -or ($null -eq $g_Config.DataTransferMode)) {
-        Write-Output "DataTransferMode must be 0, 1, or 2."
+        Write-Host "DataTransferMode must be 0, 1, or 2."
         $isValid = $false
     }
 
@@ -160,18 +153,18 @@ function test_main {
     )
 
     try {
-        # input_display
+        input_display
 
         # get config variables
         $allConfig = Get-Content -Path "$PSScriptRoot\cps.Config.json" | ConvertFrom-Json
         [Object] $g_Config = $allConfig."Cps$Config"
         if ($null -eq $g_Config) {
-            Write-Output "Cps$Config does not exist in .\cps\cps.Config.json. Please provide a valid config"
+            Write-Host "Cps$Config does not exist in .\cps\cps.Config.json. Please provide a valid config"
             throw
         }
 
         if (-not (validate_config)) {
-            Write-Output "Cps$Config is not a valid config"
+            Write-Host "Cps$Config is not a valid config"
             throw
         }
 
@@ -186,10 +179,10 @@ function test_main {
         
         # Optional - Edit spaces in output path for Invoke-Expression compatibility
         # $dir  = $dir  -replace ' ','` '
-        banner -Msg "CPS Tests"
+
         test_cps -OutDir $dir
     } catch {
-        Write-Output "Unable to generate CPS commands"
-        Write-Output "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
+        Write-Host "Unable to generate CPS commands"
+        Write-Host "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
     }
 } test_main @PSBoundParameters # Entry Point
