@@ -54,7 +54,7 @@
     Mandatory (when run with TransmitEventsRemotely switch enabled) parameter. 
     Gets password needed to connect to TansmitIp Machine. Password will be stored 
     as Secure String and chars will not be displayed on the console.
-
+    
 .DESCRIPTION
     NOTE: Please run SetupTearDown.ps1 -Setup on the DestIp and SrcIp machines 
     before running this script to ensure PSRemoting is enabled at both endpoints. 
@@ -103,11 +103,11 @@ Param(
     [String] $TransmitUserName,
 
     [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] 
-    [SecureString] $TransmitPassword      
+    [SecureString] $TransmitPassword
 )
 
 $nptDir = [System.IO.Path]::GetDirectoryName($MyInvocation.MyCommand.Definition)
-$commandsDir = [System.IO.Path]::GetDirectoryName($MyInvocation.MyCommand.Definition) + "\commands" 
+$commandsDir = "$nptDir\commands" 
 
 # Create commands directory and generate commands
 $perftestCmd = "$($nptDir)\PERFTEST.PS1" 
