@@ -23,10 +23,6 @@
         "Iterations" : 5,
         "StartPort"  : 50000,
         "tcp" : {
-            "BufferLen"     : [65536],
-            "Connections"   : [64],
-            "OutstandingIo" :[16],
-            "Options": ""
         },
         "udp" : {
             "BufferLen"     : [1372],
