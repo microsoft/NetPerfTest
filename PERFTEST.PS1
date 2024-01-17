@@ -8,11 +8,11 @@ Param(
     
     [ValidateSet("Default", "Azure", "Detail", "Max")]
     [parameter(Mandatory=$false)] [string] $Config = "Default",
-    [parameter(Mandatory=$false)]  [Array] $ToolList = @("ntttcp", "latte", "cps", "ctstraffic")
+    [parameter(Mandatory=$false)]  [Array] $ToolList = @("ntttcp", "latte", "cps", "ctstraffic", "ncps")
 )
 
 $scriptName = $MyInvocation.MyCommand.Name 
-$SupportedTools = @("ntttcp", "latte", "cps", "ctstraffic")
+$SupportedTools = @("ntttcp", "latte", "cps", "ctstraffic", "ncps")
 $start   = Get-Date
 $version = "2020.09.13.0" # Version within date context
 
@@ -138,7 +138,9 @@ function test_main {
     if ("ntttcp" -in $ToolList) {
         & "$PSScriptRoot\ntttcp\ntttcp.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
     } 
-        
+    if ("ncps" -in $ToolList) {
+        & "$PSScriptRoot\ncps\ncps.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
+    }   
     
 } test_main -Config $Config -DestIp $DestIp -SrcIp $SrcIp -OutDir $OutDir -ToolList $ToolList
 
