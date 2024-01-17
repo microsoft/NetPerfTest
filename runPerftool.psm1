@@ -496,6 +496,12 @@ param(
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
 
+        # Need to dll dependency for ncps
+        if ($toolname -eq 'ncps') {
+            Copy-Item -Path "$toolpath\vcruntime140.dll" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
+            Copy-Item -Path "$toolpath\vcruntime140.dll" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
+        }
+
         # Setup firewall rules so that traffic can go through
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("Allow$Toolname", "$CommandsDir\Receiver\$toolexe")
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("Allow$Toolname", "$CommandsDir\Sender\$toolexe") 
