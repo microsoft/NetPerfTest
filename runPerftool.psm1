@@ -4,8 +4,8 @@ Clear-content -Path $Logfile -Force -ErrorAction Ignore
 #Function to write to log file
 Function LogWrite
 {
-Param ([string]$logstring, [string] $echoToConsole=$false)
-    $timeStampLogString = "[{0}] {1}"-f (Get-Date -Format "MM/dd/yyyy HH:mm"), $logstring
+Param ([string]$logstring, [string] $echoToConsole=$true)
+    $timeStampLogString = "[{0}] {1}"-f (Get-Date -Format "MM/dd/yyyy HH:mm:ss"), $logstring
     if ($echoToConsole -eq $true) {
         Write-Host $timeStampLogString
     }
@@ -267,13 +267,13 @@ Function ProcessCommands{
     [Parameter(Mandatory=$True)]  [string]$DestIp,
     [Parameter(Mandatory=$True)] [string]$SrcIp,
     [Parameter(Mandatory=$True)]  [string]$CommandsDir,
-    [Parameter(Mandatory=$True, Position=0, HelpMessage="Dest Machine Username?")]
+    [Parameter(Mandatory=$True, HelpMessage="Dest Machine Username?")]
     [string] $DestIpUserName,
-    [Parameter(Mandatory=$True, Position=0, HelpMessage="Dest Machine Password?")]
+    [Parameter(Mandatory=$False)]
     [SecureString]$DestIpPassword,
-    [Parameter(Mandatory=$True, Position=0, HelpMessage="Src Machine Username?")]
+    [Parameter(Mandatory=$True, HelpMessage="Src Machine Username?")]
     [string] $SrcIpUserName,
-    [Parameter(Mandatory=$True, Position=0, HelpMessage="Src Machine Password?")]
+    [Parameter(Mandatory=$False)]
     [SecureString]$SrcIpPassword,
     [Parameter(Mandatory=$False)] [string]$Bcleanup=$True,
     [Parameter(Mandatory=$False)]$ZipResults=$True,
@@ -283,46 +283,126 @@ Function ProcessCommands{
     [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [Switch] $TransmitEventsRemotely,
     [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [String] $TransmitIP,
     [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [String] $TransmitUserName,
-    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [SecureString] $TransmitPassword  
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [SecureString] $TransmitPassword,
+    [Parameter(Mandatory=$False)] [Switch]$RunOnContainers=$False
     )
 
     $recvComputerName = $DestIp
     $sendComputerName = $SrcIp
 
-    [PSCredential] $sendIPCreds = New-Object System.Management.Automation.PSCredential($SrcIpUserName, $SrcIpPassword)
+    $RecvSessionArgs = @{}
+    if ($RunOnContainers)
+    {
+        $RecvSessionArgs['HostName'] = $RecvComputerName
+        $RecvSessionArgs['UserName'] = $DestIpUserName
+    }
+    else
+    {
+        $RecvSessionArgs['ComputerName'] = $RecvComputerName
 
-    [PSCredential] $recvIPCreds = New-Object System.Management.Automation.PSCredential($DestIpUserName, $DestIpPassword)
-
-    [pscredential] $transmitIPCreds = $null 
-
-    if ($TransmitEventsRemotely) {
-        [pscredential] $transmitIPCreds = New-Object System.Management.Automation.PSCredential($TransmitUserName, $TransmitPassword)
+        if ($DestIpUserName -NE $null -AND $DestIpPassword -NE $null) {
+            $RecvSessionArgs['Credential'] = New-Object System.Management.Automation.PSCredential($DestIpUserName, $DestIpPassword)
+        }
     }
 
-    [String] $workingDir = $CommandsDir.TrimEnd("\")
-
-    if (Test-Path -Path "$commandsDir\ctstraffic") {
-        LogWrite "Processing ctsTraffic commands" $true 
-        ProcessToolCommands -Toolname "ctsTraffic" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds    
+    $SendSessionArgs = @{}
+    if ($RunOnContainers)
+    {
+        $SendSessionArgs['HostName'] = $SendComputerName
+        $SendSessionArgs['UserName'] = $SrcIpUserName
     }
-   
-    if (Test-Path -Path "$commandsDir\cps") {
-        LogWrite "Processing cps commands" $true
-        ProcessToolCommands -Toolname "cps" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
-    }
+    else
+    {
+        $SendSessionArgs['ComputerName'] = $SendComputerName
 
-    if (Test-Path -Path "$commandsDir\ntttcp") {
-        LogWrite "Processing ntttcp commands" $true
-        ProcessToolCommands -Toolname "ntttcp" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
+        if ($SrcIpUserName -NE $null -AND $SrcIpPassword -NE $null) {
+            $SendSessionArgs['Credential'] = New-Object System.Management.Automation.PSCredential($SrcIpUserName, $SrcIpPassword)
+        }
     }
 
-    if (Test-Path -Path "$commandsDir\latte") {
-        LogWrite "Processing latte commands" $true
-        ProcessToolCommands -Toolname "latte" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
+    $TransmitSessionArgs = @{}
+    if ($TransmitEventsRemotely)
+    {
+        if ($RunOnContainers)
+        {
+            $TransmitSessionArgs['HostName'] = $TransmitComputerName
+            $TransmitSessionArgs['UserName'] = $TransmitUserName
+        }
+        else
+        {
+            $TransmitSessionArgs['ComputerName'] = $TransmitComputerName
+
+            if ($TransmitUserName -NE $null -AND $TransmitPassword -NE $null) {
+                $TransmitSessionArgs['Credential'] = New-Object System.Management.Automation.PSCredential($TransmitUserName, $TransmitPassword)
+            }
+        }
     }
 
-    LogWrite "ProcessCommands Done!" $true
-    Move-Item -Path $Logfile -Destination "$workingDir" -Force -ErrorAction Ignore
+    try {
+        # Establish the Remote PS session with Receiver
+        $recvPSSession = New-PSSession @RecvSessionArgs
+
+        if($recvPSsession -eq $null) {
+            throw "Error connecting to Receiver Host: $($RecvComputerName)"
+        }
+
+        # Establish the Remote PS session with Sender
+        $sendPSSession = New-PSSession @SendSessionArgs
+
+        if($sendPSsession -eq $null) {
+            throw "Error connecting to Sender Host: $($SendComputerName)"
+        }
+
+        $transmitPSSession = $null 
+        # Establish the Remote PS session with Event Transmit Receiver
+        if ($TransmitEventsRemotely) {
+            $transmitPSSession = New-PSSession @TransmitSessionArgs 
+            if ($transmitPSSession -eq $null) {
+                throw "Error connecting to Transmit Host: $($TransmitComputerName)"
+            }
+        }
+
+        [String] $workingDir = $CommandsDir.TrimEnd("\")
+
+        if (Test-Path -Path "$commandsDir\ctstraffic") {
+            LogWrite "Processing ctsTraffic commands"
+            ProcessToolCommands -Toolname "ctsTraffic" -RecvPSSession $recvPSSession -SendPSSession $sendPSSession -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitPSSession $transmitPSSession -RunOnContainers $RunOnContainers
+            LogWrite "Done processing ctsTraffic commands`n"
+        }
+        
+        if (Test-Path -Path "$commandsDir\cps") {
+            LogWrite "Processing cps commands"
+            ProcessToolCommands -Toolname "cps" -RecvPSSession $recvPSSession -SendPSSession $sendPSSession -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitPSSession $transmitPSSession -RunOnContainers $RunOnContainers
+            LogWrite "Done processing cps commands`n"
+        }
+
+        if (Test-Path -Path "$commandsDir\ntttcp") {
+            LogWrite "Processing ntttcp commands"
+            ProcessToolCommands -Toolname "ntttcp" -RecvPSSession $recvPSSession -SendPSSession $sendPSSession -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitPSSession $transmitPSSession -RunOnContainers $RunOnContainers
+            LogWrite "Done processing ntttcp commands`n"
+        }
+        
+        if (Test-Path -Path "$commandsDir\latte") {
+            LogWrite "Processing latte commands"
+            ProcessToolCommands -Toolname "latte" -RecvPSSession $recvPSSession -SendPSSession $sendPSSession -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitPSSession $transmitPSSession -RunOnContainers $RunOnContainers
+            LogWrite "Done processing latte commands`n"
+        }
+
+        LogWrite "ProcessCommands Done!"
+        Move-Item -Path $Logfile -Destination "$workingDir" -Force -ErrorAction Ignore
+
+    } # end try
+    catch {
+       LogWrite "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
+    }
+    finally {
+        LogWrite "Cleaning up Remote PS Sessions"
+        # Clean up the PS Sessions
+        if ($null -ne $recvPSSession) {Remove-PSSession $recvPSSession -ErrorAction Ignore}
+        if ($null -ne $sendPSSession) {Remove-PSSession $sendPSSession -ErrorAction Ignore}
+        if ($null -ne $transmitPSSession) {Remove-PSSession $transmitPSSession -ErrorAction Ignore}
+
+    } #finally
 } # ProcessCommands()
 
 
@@ -385,20 +465,18 @@ Function ProcessCommands{
     #>
 Function ProcessToolCommands{
 param(
-    [Parameter(Mandatory=$True)] [string]$RecvComputerName,
-    [Parameter(Mandatory=$True)] [string]$SendComputerName,
+    [Parameter(Mandatory=$True)] [System.Management.Automation.Runspaces.PSSession]$RecvPSSession,
+    [Parameter(Mandatory=$True)] [System.Management.Automation.Runspaces.PSSession]$SendPSSession,
     [Parameter(Mandatory=$True)] [string]$CommandsDir,
     [Parameter(Mandatory=$True)] [string]$Bcleanup, 
     [Parameter(Mandatory=$False)] [string]$Toolname = "ntttcp", 
-    [Parameter(Mandatory=$False)] [PSCredential] $SendComputerCreds = [System.Management.Automation.PSCredential]::Empty,
-    [Parameter(Mandatory=$False)] [PSCredential] $RecvComputerCreds = [System.Management.Automation.PSCredential]::Empty,
     [Parameter(Mandatory=$True)] [bool]$BZip,
     [Parameter(Mandatory=$False)] [int] $TimeoutValueBetweenCommandPairs = 60,
     [Parameter(Mandatory=$False)] [int] $PollTimeInSeconds = 5, 
     [Parameter(Mandatory=$False)] [Boolean] $TransmitEventsLocally=$false,
     [Parameter(Mandatory=$False)] [Boolean] $TransmitEventsRemotely=$false,
-    [Parameter(Mandatory=$False)] [String] $TransmitComputerName = "",  
-    [Parameter(Mandatory=$False)] [pscredential] $TransmitComputerCreds = [System.Management.Automation.PSCredential]::Empty
+    [Parameter(Mandatory=$False)] [System.Management.Automation.Runspaces.PSSession] $TransmitPSSession,
+    [Parameter(Mandatory=$False)] [Boolean] $RunOnContainers=$False
     )
 
     [bool] $gracefulCleanup = $False
@@ -406,48 +484,7 @@ param(
     $toolpath = ".\{0}" -f $Toolname
     $toolexe = "{0}.exe" -f $Toolname
 
-    $recvCredSplat = @{}
-    if ($RecvComputerCreds -ne [System.Management.Automation.PSCredential]::Empty) {
-        $recvCredSplat['Credential'] = $RecvComputerCreds
-    }
-
-    $sendCredSplat = @{}
-    if ($SendComputerCreds -ne [System.Management.Automation.PSCredential]::Empty) {
-        $sendCredSplat['Credential'] = $SendComputerCreds
-    }
-
-    $transmitCredSplat = @{}
-    if ($TransmitComputerCreds -ne [System.Management.Automation.PSCredential]::Empty) {
-        $transmitCredSplat['Credential'] = $TransmitComputerCreds
-    }
-
     try {
-        # Establish the Remote PS session with Receiver
-        $recvPSSession = New-PSSession -ComputerName $RecvComputerName @recvCredSplat
-
-        if($recvPSsession -eq $null) {
-            LogWrite "Error connecting to Host: $($RecvComputerName)"
-            return
-        }
-
-        # Establish the Remote PS session with Sender
-        $sendPSSession = New-PSSession -ComputerName $SendComputerName @sendCredSplat
-
-        if($sendPSsession -eq $null) {
-            LogWrite "Error connecting to Host: $($SendComputerName)"
-            return
-        }
-
-        $transmitPSSession = $null 
-        # Establish the Remote PS session with Event Transmit Receiver
-        if ($TransmitEventsRemotely) {
-            $transmitPSSession = New-PSSession -ComputerName $TransmitComputerName @transmitCredSplat 
-            if ($transmitPSSession -eq $null) {
-                LogWrite "Error connecting to Host: $($TransmitComputerName)"
-                return 
-            }
-        }   
-
         # Construct the input file to read for commands.
         $sendCmdFile = Join-Path -Path $CommandsDir -ChildPath "\$Toolname\$Toolname.Commands.Send.txt"
         $recvCmdFile = Join-Path -Path $CommandsDir -ChildPath "\$Toolname\$Toolname.Commands.Recv.txt"
@@ -485,9 +522,13 @@ param(
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
 
-        # Setup firewall rules so that traffic can go through
-        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("Allow$Toolname", "$CommandsDir\Receiver\$toolexe")
-        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("Allow$Toolname", "$CommandsDir\Sender\$toolexe") 
+        if (-NOT $RunOnContainers)
+        {
+            # Setup firewall rules so that traffic can go through
+            LogWrite "Creating temporary firewall rules for $Toolname"
+            $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("Allow$Toolname", "$CommandsDir\Receiver\$toolexe")
+            $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("Allow$Toolname", "$CommandsDir\Sender\$toolexe") 
+        }
 
         $recvCommandsReader = [System.IO.File]::OpenText($recvCmdFile)
         $sendCommandsReader = [System.IO.File]::OpenText($sendCmdFile)
@@ -517,8 +558,8 @@ param(
             # Work here to invoke recv commands
             # Since we want the files to get generated under a subfolder, we replace the path to include the subfolder
             $recvCmd =  $recvCmd -ireplace [regex]::Escape($CommandsDir), "$CommandsDir\Receiver"
-            LogWrite "Invoking Cmd - Machine: $recvComputerName Command: $recvCmd"
-            LogWrite "Invoking $Toolname Cmd $($i + 1) / $numCmds ..." $true
+            LogWrite "Invoking $Toolname Cmd $($i + 1) / $numCmds ..."
+            LogWrite "Invoking Receive Cmd - Machine: $recvComputerName Command: $recvCmd" -echoToConsole $false
             $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRunToolCmd -ArgumentList $recvCmd 
             
             # Fix for intermittent race condition where the Send process gets lauched before Recv and the test bails out because the handshake fails
@@ -527,7 +568,7 @@ param(
             # Work here to invoke send commands
             # Since we want the files to get generated under a subfolder, we replace the path to include the subfolder
             $sendCmd =  $sendCmd -ireplace [regex]::Escape($CommandsDir), "$CommandsDir\Sender"
-            LogWrite "Invoking Cmd - Machine: $sendComputerName Command: $sendCmd"  
+            LogWrite "Invoking Send Cmd - Machine: $sendComputerName Command: $sendCmd" -echoToConsole $false
             $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRunToolCmd -ArgumentList $sendCmd
 
             [int] $timeout = GetActualTimeOutValue -AdditionalTimeout $TimeoutValueBetweenCommandPairs -Line $sendCmd
@@ -548,6 +589,7 @@ param(
                     Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd -RawData $jsonBytes -ErrorAction Stop
                     
                 } else {
+                    LogWrite "Invoking Transmit Cmd - Machine: $transmitComputerName" -echoToConsole $false
                     $null = Invoke-Command -Session $transmitPSSession -ScriptBlock $WriteToRemoteEventLog -ArgumentList ($unexpandedRecvCmd, $jsonBytes)
                 }
             } 
@@ -570,20 +612,20 @@ param(
 
                 if (($checkRecvProcessExit -eq $null)-and ($checkSendProcessExit -eq $null)){
                     $cmdPairCompleted = $true
-                    LogWrite "$Toolname exited on both Src and Dest machines"
+                    LogWrite "$Toolname exited on both Src and Dest machines" -echoToConsole $false
                     break
                 }
 
                 if(($Toolname -eq "ctsTraffic") -and ($checkSendProcessExit -eq $null) ) {
                     # There's no time-based shutoff with ctstraffic servers, so recv machine will remain running until
                     # we send it a task kill command
-                    LogWrite "$Toolname exited on Src machine, proceeding to shut down on Dst machine"
+                    LogWrite "$Toolname exited on Src machine, proceeding to shut down on Dst machine" -echoToConsole $false
                     $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
                     break
                 } 
             } 
 
-            LogWrite "Complete`n" $true
+            LogWrite "Complete`n"
             $sw.Stop()
             
             #Wait for disk I/O to be completed
@@ -675,21 +717,16 @@ param(
 
         }
 
-        LogWrite "Cleaning up the firewall rules that were created as part of script run..."
-        # Clean up the firewall rules that this script created
-        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCleanupFirewallRules -ArgumentList (("Allow{0}In" -f $Toolname))
-        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCleanupFirewallRules -ArgumentList (("Allow{0}Out" -f $Toolname))
+        if (-NOT $RunOnContainers)
+        {
+            LogWrite "Cleaning up the firewall rules that were created as part of script run..."
+            # Clean up the firewall rules that this script created
+            $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCleanupFirewallRules -ArgumentList (("Allow{0}In" -f $Toolname))
+            $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCleanupFirewallRules -ArgumentList (("Allow{0}Out" -f $Toolname))
 
-        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCleanupFirewallRules -ArgumentList (("Allow{0}In" -f $Toolname))
-        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCleanupFirewallRules -ArgumentList (("Allow{0}Out" -f $Toolname))
-
-        LogWrite "Cleaning up Remote PS Sessions"
-        # Clean up the PS Sessions
-        Remove-PSSession $sendPSSession -ErrorAction Ignore
-        Remove-PSSession $recvPSSession -ErrorAction Ignore
-
-        # Clean up event transmission PS session, if one was opened
-        if ($null -ne $transmitPSSession) {Remove-PSSession $transmitPSSession -ErrorAction Ignore}
+            $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCleanupFirewallRules -ArgumentList (("Allow{0}In" -f $Toolname))
+            $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCleanupFirewallRules -ArgumentList (("Allow{0}Out" -f $Toolname))
+        }
 
     } #finally
 } # ProcessToolCommands()

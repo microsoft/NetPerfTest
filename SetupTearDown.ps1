@@ -16,7 +16,10 @@
 #>
 Param(
     [switch] $Setup,
-    [switch] $Cleanup
+    [switch] $Cleanup,
+    [switch] $SetupHost,
+    [switch] $SetupContainer,
+    [string] $AuthorizedKey
 )
 
 Function SetupRemoting{
@@ -28,6 +31,68 @@ Function SetupRemoting{
     Set-Item WSMan:\localhost\Client\TrustedHosts -Value '*' -Force
 
 } # SetupRemoting()
+
+Function SetupSshRemotingOnHost{
+
+    Write-Host "Enabling SSH Remoting on host computer..."
+
+    #TODO: Don't run setup steps if they've already been run before
+
+    Write-Host "`nGenerating SSH Public Key"
+    ssh-keygen -t ed25519
+    $authorizedKey = Get-Content -Path $env:USERPROFILE\.ssh\id_ed25519.pub
+
+    Write-Host "`nConfigure SSH-Agent with Private Key"
+    Get-Service ssh-agent | Set-Service -StartupType Automatic
+    Start-Service ssh-agent
+    ssh-add $env:USERPROFILE\.ssh\id_ed25519
+
+    Write-Host "`nInstall PowerShell"
+    Invoke-WebRequest https://github.com/PowerShell/PowerShell/releases/download/v7.4.0/PowerShell-7.4.0-win-x64.msi -OutFile "$env:Temp\PowerShell-7.4.0-win-x64.msi"
+    msiexec.exe /package "$env:Temp\PowerShell-7.4.0-win-x64.msi" /quiet ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ADD_FILE_CONTEXT_MENU_RUNPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1 USE_MU=1 ENABLE_MU=1 ADD_PATH=1
+
+    Write-Host "`nDone"
+    
+    Write-Host "`n`nRun the following command in each of the containers"
+    Write-Host ".\SetUpTearDown.ps1 -SetupContainer -AuthorizedKey '$authorizedKey'"
+
+} # SetupSshRemotingOnHost()
+
+
+Function SetupSshRemotingOnContainer{
+param(
+    [Parameter(Mandatory=$True)] [string]$AuthorizedKey
+)
+
+    Write-Host "Enabling SSH Remoting on container..."
+
+    #TODO: Don't run setup steps if they've already been run before
+
+    Write-Host "`nInstall OpenSSH Server"
+    Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+
+    # Start the SSHD service to create all the default config files
+    Write-Host "`nCreate SSHD default config files"
+    start-service sshd
+    stop-service sshd
+
+    Write-Host "`nAdd the AuthorizedKey as a trusted admin key"
+    Add-Content -Force -Path "$env:ProgramData\ssh\administrators_authorized_keys" -Value "$authorizedKey"
+    icacls.exe "$env:ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F"
+
+    Write-Host "`nInstall PowerShell"
+    Invoke-WebRequest https://github.com/PowerShell/PowerShell/releases/download/v7.4.0/PowerShell-7.4.0-win-x64.msi -OutFile "$env:Temp\PowerShell-7.4.0-win-x64.msi"
+    msiexec.exe /package "$env:Temp\PowerShell-7.4.0-win-x64.msi" /quiet ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ADD_FILE_CONTEXT_MENU_RUNPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1 USE_MU=1 ENABLE_MU=1 ADD_PATH=1
+
+    Write-Host "`nCreate the symlink for the Program Files folder and update the powershell subsystem config"
+    cmd /C mklink /J 'C:\Progra~1' 'C:\Program Files\'
+    $SshdConfigContent = get-content C:\ProgramData\ssh\sshd_config
+    $SshdConfigContent[78] = "Subsystem powershell C:\Progra~1\powershell\7\pwsh.exe -sshs -nologo"
+    $SshdConfigContent | set-content C:\ProgramData\ssh\sshd_config
+
+    Write-Host "`nDone"
+
+} # SetupSshRemotingOnContainer()
 
 
 Function CleanupRemoting{
@@ -49,21 +114,19 @@ Function CleanupRemoting{
 
 } # CleanupRemoting()
 
-#Main-function
-function main {
-    try {
-        if($Setup.IsPresent) {
-            SetupRemoting
-        } elseif($Cleanup.IsPresent) {
-            CleanupRemoting
-        } else {
-            Write-Host "Exiting.. as neither the setup nor cleanup flag was passed"
-        }
-    } # end try
-    catch {
-       Write-Host "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
-    }    
+try {
+    if($Setup.IsPresent) {
+        SetupRemoting
+    } elseif($Cleanup.IsPresent) {
+        CleanupRemoting
+    } elseif($SetupHost) {
+        SetupSshRemotingOnHost
+    } elseif($SetupContainer) {
+        SetupSshRemotingOnContainer -AuthorizedKey $AuthorizedKey
+    } else {
+        Write-Host "Exiting.. as neither the setup nor cleanup flag was passed"
+    }
+} # end try
+catch {
+    Write-Host "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
 }
-
-#Entry point
-main @PSBoundParameters
