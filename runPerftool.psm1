@@ -433,6 +433,12 @@ Function ProcessCommands{
             LogWrite "Done processing latte commands`n"
         }
 
+        if (Test-Path -Path "$commandsDir\l4ping") {
+            LogWrite "Processing l4ping commands"
+            ProcessToolCommands -Toolname "l4ping" -RecvPSSession $recvPSSession -SendPSSession $sendPSSession -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitPSSession $transmitPSSession -RunOnContainers $RunOnContainers
+            LogWrite "Done processing l4ping commands`n"
+        }
+
         LogWrite "ProcessCommands Done!"
         Move-Item -Path $Logfile -Destination "$workingDir" -Force -ErrorAction Ignore
 
@@ -558,6 +564,10 @@ param(
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\latte\default")
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\latte\optimized")
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\latte\default") 
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\l4ping\optimized")
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\l4ping\default")
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\l4ping\optimized")
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\l4ping\default") 
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ctsTraffic\tcp") 
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ctsTraffic\udp")  
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ctsTraffic\tcp")  
