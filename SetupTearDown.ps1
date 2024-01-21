@@ -9,17 +9,26 @@
 .PARAMETER Cleanup
     This switch triggers the cleanup path which disables WinRM service, removes the firewall rules that were created earlier for remoting, and also Disables PSRemoting
 
+.PARAMETER SetupContainerHost
+    This switch triggers the setup calls which end up enabling PS Remoting over SSH on the container host machine (generating a public key and installing PowerShell 7)
+
+.PARAMETER SetupContainer
+    This switch triggers the setup calls which end up enabling PS Remoting over SSH on a container (installing and configurating OpenSSH server and PowerShell 7)
+
+.PARAMETER AuthorizedKey
+    The SSH public key generated as part of the SetupContainerHost call. Should be passed to SetupContainer calls for OpenSSH configuration.
+
 .DESCRIPTION
     Run this script to setup your machine for PS Remoting so that you can leverage the functionality of runPerfTool.psm1
     Run this script at the end of the tool runs to restore state on the machines.
     Ex: SetupTearDown.ps1 -Setup or SetupTearDown.ps1 -Cleanup
 #>
 Param(
-    [switch] $Setup,
-    [switch] $Cleanup,
-    [switch] $SetupHost,
-    [switch] $SetupContainer,
-    [string] $AuthorizedKey
+    [Parameter(Mandatory=$True, ParameterSetName="Setup")]              [switch] $Setup,
+    [Parameter(Mandatory=$True, ParameterSetName="Cleanup")]            [switch] $Cleanup,
+    [Parameter(Mandatory=$True, ParameterSetName="SetupContainerHost")] [switch] $SetupContainerHost,
+    [Parameter(Mandatory=$True, ParameterSetName="SetupContainer")]     [switch] $SetupContainer,
+    [Parameter(Mandatory=$True, ParameterSetName="SetupContainer")]     [string] $AuthorizedKey
 )
 
 Function SetupRemoting{
@@ -36,10 +45,15 @@ Function SetupSshRemotingOnHost{
 
     Write-Host "Enabling SSH Remoting on host computer..."
 
-    #TODO: Don't run setup steps if they've already been run before
-
-    Write-Host "`nGenerating SSH Public Key"
-    ssh-keygen -t ed25519
+    if (-NOT (Test-Path "$env:USERPROFILE\.ssh\id_ed25519.pub"))
+    {
+        Write-Host "`nGenerating SSH Public Key"
+        ssh-keygen -t ed25519
+    }
+    else
+    {
+        Write-Host "`nUsing existing SSH Public Key"
+    }
     $authorizedKey = Get-Content -Path $env:USERPROFILE\.ssh\id_ed25519.pub
 
     Write-Host "`nConfigure SSH-Agent with Private Key"
@@ -47,9 +61,16 @@ Function SetupSshRemotingOnHost{
     Start-Service ssh-agent
     ssh-add $env:USERPROFILE\.ssh\id_ed25519
 
-    Write-Host "`nInstall PowerShell"
-    Invoke-WebRequest https://github.com/PowerShell/PowerShell/releases/download/v7.4.0/PowerShell-7.4.0-win-x64.msi -OutFile "$env:Temp\PowerShell-7.4.0-win-x64.msi"
-    msiexec.exe /package "$env:Temp\PowerShell-7.4.0-win-x64.msi" /quiet ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ADD_FILE_CONTEXT_MENU_RUNPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1 USE_MU=1 ENABLE_MU=1 ADD_PATH=1
+    if (-NOT (Test-Path "$env:ProgramFiles\PowerShell\7\"))
+    {
+        Write-Host "`nInstall PowerShell"
+        Invoke-WebRequest https://github.com/PowerShell/PowerShell/releases/download/v7.4.0/PowerShell-7.4.0-win-x64.msi -OutFile "$env:Temp\PowerShell-7.4.0-win-x64.msi"
+        msiexec.exe /package "$env:Temp\PowerShell-7.4.0-win-x64.msi" /quiet ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ADD_FILE_CONTEXT_MENU_RUNPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1 USE_MU=1 ENABLE_MU=1 ADD_PATH=1
+    }
+    else
+    {
+        Write-Host "`nPowerShell 7 already installed"
+    }
 
     Write-Host "`nDone"
     
@@ -66,29 +87,71 @@ param(
 
     Write-Host "Enabling SSH Remoting on container..."
 
-    #TODO: Don't run setup steps if they've already been run before
+    if ((Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH.Server*').State -NE 'Installed')
+    {
+        Write-Host "`nInstall OpenSSH Server"
+        Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+    }
+    else
+    {
+        Write-Host "`nOpenSSH Server already installed"
+    }
 
-    Write-Host "`nInstall OpenSSH Server"
-    Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+    if (-NOT (Test-Path "$env:ProgramData\ssh\sshd_config"))
+    {
+        # Start the SSHD service to create all the default config files
+        Write-Host "`nCreate SSHD default config files"
+        start-service sshd
+        stop-service sshd
+    }
+    else
+    {
+        Write-Host "`nSSHD default config files already exist"
+    }
 
-    # Start the SSHD service to create all the default config files
-    Write-Host "`nCreate SSHD default config files"
-    start-service sshd
-    stop-service sshd
+    if (-NOT (Test-Path "$env:ProgramData\ssh\administrators_authorized_keys"))
+    {
+        Write-Host "`nAdd the AuthorizedKey as a trusted admin key"
+        Add-Content -Force -Path "$env:ProgramData\ssh\administrators_authorized_keys" -Value "$authorizedKey"
+        icacls.exe "$env:ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F"
+    }
+    else
+    {
+        Write-Host "`nTrusted admin keys already exist"
+    }
 
-    Write-Host "`nAdd the AuthorizedKey as a trusted admin key"
-    Add-Content -Force -Path "$env:ProgramData\ssh\administrators_authorized_keys" -Value "$authorizedKey"
-    icacls.exe "$env:ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F"
+    if (-NOT (Test-Path "$env:ProgramFiles\PowerShell\7\"))
+    {
+        Write-Host "`nInstall PowerShell"
+        Invoke-WebRequest https://github.com/PowerShell/PowerShell/releases/download/v7.4.0/PowerShell-7.4.0-win-x64.msi -OutFile "$env:Temp\PowerShell-7.4.0-win-x64.msi"
+        msiexec.exe /package "$env:Temp\PowerShell-7.4.0-win-x64.msi" /quiet ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ADD_FILE_CONTEXT_MENU_RUNPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1 USE_MU=1 ENABLE_MU=1 ADD_PATH=1
+    }
+    else
+    {
+        Write-Host "`nPowerShell 7 already installed"
+    }
 
-    Write-Host "`nInstall PowerShell"
-    Invoke-WebRequest https://github.com/PowerShell/PowerShell/releases/download/v7.4.0/PowerShell-7.4.0-win-x64.msi -OutFile "$env:Temp\PowerShell-7.4.0-win-x64.msi"
-    msiexec.exe /package "$env:Temp\PowerShell-7.4.0-win-x64.msi" /quiet ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ADD_FILE_CONTEXT_MENU_RUNPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1 USE_MU=1 ENABLE_MU=1 ADD_PATH=1
+    if (-NOT (Test-Path "C:\Progra~1"))
+    {
+        Write-Host "`nCreate the symlink for the Program Files folder"
+        cmd /C mklink /J 'C:\Progra~1' 'C:\Program Files\'
+    }
+    else
+    {
+        Write-Host "`nProgram Files symlink already exists"
+    }
 
-    Write-Host "`nCreate the symlink for the Program Files folder and update the powershell subsystem config"
-    cmd /C mklink /J 'C:\Progra~1' 'C:\Program Files\'
-    $SshdConfigContent = get-content C:\ProgramData\ssh\sshd_config
-    $SshdConfigContent[78] = "Subsystem powershell C:\Progra~1\powershell\7\pwsh.exe -sshs -nologo"
-    $SshdConfigContent | set-content C:\ProgramData\ssh\sshd_config
+    $SshdConfigContent = Get-Content "$env:ProgramData\ssh\sshd_config"
+    if ($SshdConfigContent -NotContains "Subsystem powershell C:\Progra~1\powershell\7\pwsh.exe -sshs -nologo")
+    {
+        Write-Host "`nUpdate the PowerShell subsystem config"
+        $SshdConfigContent[78] = "Subsystem powershell C:\Progra~1\powershell\7\pwsh.exe -sshs -nologo"
+        $SshdConfigContent | Set-Content "$env:ProgramData\ssh\sshd_config"
+    }
+    else
+    {
+        Write-Host "`nPowerShell subsystem config already exists"
+    }
 
     Write-Host "`nDone"
 
@@ -114,19 +177,12 @@ Function CleanupRemoting{
 
 } # CleanupRemoting()
 
-try {
-    if($Setup.IsPresent) {
-        SetupRemoting
-    } elseif($Cleanup.IsPresent) {
-        CleanupRemoting
-    } elseif($SetupHost) {
-        SetupSshRemotingOnHost
-    } elseif($SetupContainer) {
-        SetupSshRemotingOnContainer -AuthorizedKey $AuthorizedKey
-    } else {
-        Write-Host "Exiting.. as neither the setup nor cleanup flag was passed"
-    }
-} # end try
-catch {
-    Write-Host "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
+if($Setup) {
+    SetupRemoting
+} elseif($Cleanup) {
+    CleanupRemoting
+} elseif($SetupContainerHost) {
+    SetupSshRemotingOnHost
+} elseif($SetupContainer) {
+    SetupSshRemotingOnContainer -AuthorizedKey $AuthorizedKey
 }
