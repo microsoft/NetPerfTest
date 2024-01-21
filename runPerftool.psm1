@@ -263,28 +263,73 @@ $WriteToRemoteEventLog = {
     You may chose to run SetupTearDown.ps1 -Cleanup if you wish to clean up any config changes from the Setup step
 #>
 Function ProcessCommands{
+[CmdletBinding(DefaultParameterSetName = 'Default')]
     param(
-    [Parameter(Mandatory=$True)]  [string]$DestIp,
-    [Parameter(Mandatory=$True)] [string]$SrcIp,
-    [Parameter(Mandatory=$True)]  [string]$CommandsDir,
+    [Parameter(Mandatory=$True)]
+    [string] $DestIp,
+
+    [Parameter(Mandatory=$True)]
+    [string] $SrcIp,
+
     [Parameter(Mandatory=$True, HelpMessage="Dest Machine Username?")]
     [string] $DestIpUserName,
-    [Parameter(Mandatory=$False)]
-    [SecureString]$DestIpPassword,
+
+    [Parameter(Mandatory=$True, ParameterSetName="Default", HelpMessage="Dest Machine Password?")]
+    [Parameter(Mandatory=$True, ParameterSetName="LocalTransmit", HelpMessage="Dest Machine Password?")]
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit", HelpMessage="Dest Machine Password?")]
+    [SecureString] $DestIpPassword,
+
     [Parameter(Mandatory=$True, HelpMessage="Src Machine Username?")]
     [string] $SrcIpUserName,
+
+    [Parameter(Mandatory=$True, ParameterSetName="Default", HelpMessage="Src Machine Password?")]
+    [Parameter(Mandatory=$True, ParameterSetName="LocalTransmit", HelpMessage="Src Machine Password?")]
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit", HelpMessage="Src Machine Password?")]
+    [SecureString] $SrcIpPassword,
+
+    [Parameter(Mandatory=$True)]
+    [string] $CommandsDir,
+
     [Parameter(Mandatory=$False)]
-    [SecureString]$SrcIpPassword,
-    [Parameter(Mandatory=$False)] [string]$Bcleanup=$True,
-    [Parameter(Mandatory=$False)]$ZipResults=$True,
-    [Parameter(Mandatory=$False)]$TimeoutValueInSeconds=90,
-    [Parameter(Mandatory=$False)]$PollTimeInSeconds=5,
-    [Parameter(Mandatory=$false, ParameterSetName="Transmit")] [Switch] $TransmitEventsLocally,
-    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [Switch] $TransmitEventsRemotely,
-    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [String] $TransmitIP,
-    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [String] $TransmitUserName,
-    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [SecureString] $TransmitPassword,
-    [Parameter(Mandatory=$False)] [Switch]$RunOnContainers=$False
+    [string] $Bcleanup=$True,
+
+    [Parameter(Mandatory=$False)]
+    [Boolean] $ZipResults=$True,
+
+    [Parameter(Mandatory=$False)]
+    [Int] $TimeoutValueInSeconds=90,
+
+    [Parameter(Mandatory=$False)]
+    [Int] $PollTimeInSeconds=5,
+
+    [Parameter(Mandatory=$True, ParameterSetName="LocalTransmit")]
+    [Parameter(Mandatory=$True, ParameterSetName="LocalTransmitOnContainers")]
+    [Switch] $TransmitEventsLocally,
+
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")]
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOnContainers")]
+    [Switch] $TransmitEventsRemotely,
+
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")]
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOnContainers")]
+    [String] $TransmitIP,
+
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")]
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOnContainers")]
+    [String] $TransmitUserName,
+
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")]
+    [SecureString] $TransmitPassword,
+
+    [Parameter(Mandatory=$False, ParameterSetName="Default")]
+    [Parameter(Mandatory=$False, ParameterSetName="LocalTransmit")]
+    [Parameter(Mandatory=$False, ParameterSetName="RemoteTransmit")]
+    [Switch] $RunWithPasswords=$False,
+
+    [Parameter(Mandatory=$True, ParameterSetName="RunOnContainers")]
+    [Parameter(Mandatory=$True, ParameterSetName="LocalTransmitOnContainers")]
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOnContainers")]
+    [Switch] $RunOnContainers=$False
     )
 
     $recvComputerName = $DestIp
