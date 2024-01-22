@@ -201,14 +201,16 @@ $WriteToRemoteEventLog = {
     Required Parameter. Gets domain\username needed to connect to DestIp Machine
 
 .PARAMETER DestIpPassword
-    Required Parameter. Gets password needed to connect to DestIp Machine. 
+    Mandatory (when RunOnContainers switch is NOT enabled) parameter. 
+    Gets password needed to connect to DestIp Machine. 
     Password will be stored as Secure String and chars will not be displayed on the console.
 
 .PARAMETER SrcIpUserName
     Required Parameter. Gets domain\username needed to connect to SrcIp Machine
 
 .PARAMETER SrcIpPassword
-    Required Parameter. Gets password needed to connect to SrcIp Machine. 
+    Mandatory (when RunOnContainers switch is NOT enabled) parameter. 
+    Gets password needed to connect to SrcIp Machine. 
     Password will be stored as Secure String and chars will not be displayed on the console
 
 .PARAMETER CommandsDir
@@ -252,6 +254,14 @@ $WriteToRemoteEventLog = {
     Mandatory (when run with TransmitEventsRemotely switch enabled) parameter. 
     Gets password needed to connect to TansmitIp Machine. Password will be stored 
     as Secure String and chars will not be displayed on the console.
+
+.PARAMETER RunWithPasswords
+    Optional switch to tell PowerShell that you would like to be prompted for user passwords on the command line.
+    Only required if PowerShell returns an error indicating it cannot determine the appropriate ParameterSet to use.
+
+.PARAMETER RunOnContainers
+    Mandatory (when running tests on containers over SSH) parameter.
+    The script will attempt to run the tests using PowerShell 7 remoting over SSH.
 
 .DESCRIPTION
     Please run SetupTearDown.ps1 -Setup on the DestIp and SrcIp machines independently to help with PSRemoting setup
@@ -465,11 +475,11 @@ Function ProcessCommands{
 .SYNOPSIS
     This function reads an input file of commands and orchestrates the execution of these commands on remote machines.
 
-.PARAMETER RecvComputerName
-    The IpAddr of the destination machine that's going to play the Receiver role and wait to receive data for the duration of the throughput tests
+.PARAMETER RecvPSSession
+    The PowerShell session to the destination machine that's going to play the Receiver role and wait to receive data for the duration of the throughput tests
 
-.PARAMETER SendComputerName
-    The IpAddr of the sender machine that's going to send data for the duration of the throughput tests
+.PARAMETER SendPSSession
+    The PowerShell session to the sender machine that's going to send data for the duration of the throughput tests
 
 .PARAMETER CommandsDir
     The location of the folder that's going to have the auto generated commands for the tool.
@@ -481,12 +491,6 @@ Function ProcessCommands{
 .PARAMETER bCleanup
     Required parameter. The function creates folders and subfolders on remote machines to house the result files of the individual commands. bCleanup param decides 
     if the folders should be left as is, or if they should be cleaned up
-
-.PARAMETER SendComputerCreds
-    Optional PSCredentials to connect to the Sender machine
-
-.PARAMETER RecvComputerCreds
-    Optional PSCredentials to connect to the Receiver machine
 
 .PARAMETER BZip
     Required parameter. The function creates folders and subfolders on remote machines to house the result files of the individual commands. BZip param decides 
@@ -507,11 +511,8 @@ Function ProcessCommands{
     Optional switch to enable the transmission of event log entries to a remote computer. These event logs can be used
     to synchronize other tools with NPT commands.
 
-.PARAMETER TransmitComputerName
-    The IP address of the remote machine which will receive event log transmissions.
- 
-.PARAMETER TransmitComputerCreds
-    Optional PSCredentials to connect to the machine which will receive event log transmissions.
+.PARAMETER TransmitPSSession
+    The PowerShell session to the remote machine which will receive event log transmissions.
 
     #>
 Function ProcessToolCommands{
