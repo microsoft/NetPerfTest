@@ -420,7 +420,7 @@ Function ProcessCommands{
             ProcessToolCommands -Toolname "cps" -RecvPSSession $recvPSSession -SendPSSession $sendPSSession -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitPSSession $transmitPSSession -RunOnContainers $RunOnContainers
             LogWrite "Done processing cps commands`n"
         }
-
+        
         if (Test-Path -Path "$commandsDir\ntttcp") {
             LogWrite "Processing ntttcp commands"
             ProcessToolCommands -Toolname "ntttcp" -RecvPSSession $recvPSSession -SendPSSession $sendPSSession -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitPSSession $transmitPSSession -RunOnContainers $RunOnContainers
@@ -564,10 +564,8 @@ param(
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\latte\default")
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\latte\optimized")
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\latte\default") 
-        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\l4ping\optimized")
-        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\l4ping\default")
-        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\l4ping\optimized")
-        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\l4ping\default") 
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\l4ping")
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\l4ping")
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ctsTraffic\tcp") 
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ctsTraffic\udp")  
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ctsTraffic\tcp")  
@@ -671,8 +669,8 @@ param(
                     break
                 }
 
-                if(($Toolname -eq "ctsTraffic") -and ($checkSendProcessExit -eq $null) ) {
-                    # There's no time-based shutoff with ctstraffic servers, so recv machine will remain running until
+                if(($Toolname -eq "ctsTraffic" -or $Toolname -eq 'l4ping') -and ($checkSendProcessExit -eq $null) ) {
+                    # There's no time-based shutoff with ctstraffic or l4ping servers, so recv machine will remain running until
                     # we send it a task kill command
                     LogWrite "$Toolname exited on Src machine, proceeding to shut down on Dst machine" -echoToConsole $false
                     $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe

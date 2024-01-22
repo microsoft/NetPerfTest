@@ -1,51 +1,11 @@
 {
     "L4pingDefault": 
     {
-        "Iterations"     : 1,
-        "Protocol"       : ["tcp", "udp"],
-        "StartPort"      : 50000,
-        "Time"           : 30,
-        "PingIterations" : 10000,
-        "SendMethod"     : [ "b" ],
-        "Default"        : null,
-        "Optimized"      : "-group 0 -rio -riopoll 100000000000",
-        "Options"        : ""
-    },
-
-    "L4pingAzure": 
-    {
-        "Iterations"     : 0,
-        "Protocol"       : ["udp"],
-        "StartPort"      : 50000,
-        "Time"           : 0,
-        "PingIterations" : 10000,
-        "SendMethod"     : [ "b" ],
-        "Default"        : null,
-        "Optimized"      : "-group 0 -rio -riopoll 100000000000",
-        "Options"        : ""
-    },
-
-    "L4pingDetail": {
-        "Iterations"     : 5,
-        "Protocol"       : ["tcp", "udp"],
-        "StartPort"      : 50000,
-        "Time"           : 10,
-        "PingIterations" : 10000,
-        "SendMethod"     : [ "b", "nb", "ovc", "ove", "ovp", "sel" ],
-        "Default"        : "",
-        "Optimized"      : "-group 0 -rio -riopoll 100000000000",
-        "Options"        : ""
-    },
-
-    "L4pingMax": {
-        "Iterations"     : 5,
-        "Protocol"       : ["tcp", "udp"],
-        "StartPort"      : 50000,
-        "Time"           : 10,
-        "PingIterations" : 10000,
-        "SendMethod"     : ["b"],
-        "Default"        : "",
-        "Optimized"      : "-group 0 -rio -riopoll 100000000000",
-        "Options"        : ""
+        "Iterations"        : 1,
+        "StartPort"         : 50000,
+        "ClientSendSize"    : 4,
+        "ClientReceiveSize" : 4,
+        "PingIterations"    : 100000,
+        "Percentiles"       : "0.0, 0.50, 0.90, 0.99, 0.999, 0.9999, 0.99999, 1.0"
     }
 }
