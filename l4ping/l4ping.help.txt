@@ -1,0 +1,13 @@
+l4ping [options]
+-S <send size>          bytes to send
+-R <receive size>       bytes to receive
+-c <address:port>       client connect to server address:port
+-b <bytes>              byte count for single ping, default: 4
+-m <measures>           count of measures to take, default: 1000000
+-p <percentiles>        comma separated list of percentiles
+-s <address:port>       server bind to address:port
+-o <csv file>           output results in csv format to file
+
+warning: value provided for -s -R needs to be mirrored with -c -S
+warning: value provided for -s -S needs to be mirrored with -c -R
+example: l4ping -c '127.0.0.1:5000' -b 4 -m 1000 -p 0,50,100

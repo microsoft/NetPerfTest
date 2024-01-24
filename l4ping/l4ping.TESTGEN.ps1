@@ -36,7 +36,16 @@ function banner {
 } # banner()
 
 function test_recv {
-    [string] $cmd = "l4ping.exe -ga"
+    [CmdletBinding()]
+    Param(
+        [parameter(Mandatory=$false)]  [string] $Iter,
+        [parameter(Mandatory=$true)]   [int]    $Port,
+        [parameter(Mandatory=$false)]  [String] $Options,
+        [parameter(Mandatory=$true)]   [String] $OutDir,
+        [parameter(Mandatory=$true)]   [String] $Fname
+    )
+
+    [string] $cmd = "l4ping.exe -s "
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
     Write-Output   $cmd 
@@ -46,128 +55,44 @@ function test_send {
     [CmdletBinding()]
     Param(
         [parameter(Mandatory=$false)]  [string] $Iter,
-        [parameter(Mandatory=$false)]  [int]    $Secs,
         [parameter(Mandatory=$true)]   [int]    $Port,
-        [parameter(Mandatory=$true)]   [String] $Type,
-        [parameter(Mandatory=$true)]   [String] $Snd,
         [parameter(Mandatory=$false)]  [String] $Options,
         [parameter(Mandatory=$true)]   [String] $OutDir,
-        [parameter(Mandatory=$true)]   [String] $Fname,
-        [parameter(Mandatory=$false)]  [bool]   $NoDumpParam = $false
+        [parameter(Mandatory=$true)]   [String] $Fname
     )
 
-    #[int] $msgbytes = 4  #l4ping default is 4B, no immediate need to specify.
-    [int] $rangeus  = 10
-    [int] $rangemax = 98
-
     [string] $out        = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $dumpOption = "-dump $out.data.txt"
+    [string] $data = "$out.data.csv"
 
-    if ($NoDumpParam) {
-        $dumpOption = ""
-    }
-
-    [string] $cmd = "l4ping.exe -sa -c -a $g_DestIp" + ":"  + "$Port $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -so $dumpOption > $out.txt"
+    [string] $cmd = "l4ping.exe -c `'$g_DestIp" + ":"  + "$Port`' -S $Options -o $data > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Output   $cmd 
 } # test_send()
-
-function test_protocol {
-    [CmdletBinding()]
-    Param(
-        [parameter(Mandatory=$false)] [String] $OutDirDefault,
-        [parameter(Mandatory=$false)] [String] $OutDirOpt,
-        [parameter(Mandatory=$true)] [String] $Protocol,
-        [parameter(Mandatory=$true)] [String] $Iter,
-        [parameter(Mandatory=$true)] [String] $Fname,
-        [parameter(Mandatory=$false)] [bool]   $NoDumpParam = $false
-    )
-    # vary send method
-    foreach ($snd in $g_Config.SendMethod) {
-        for ($i=0; $i -lt $g_Config.Iterations; $i++) {
-            # vary port number
-            [int] $portstart = $g_Config.StartPort + ($i * $g_Config.Iterations)
-            # output optimized commands
-            if ($null -ne  $g_Config.Optimized) {
-                test_send -Iter $Iter -Port $portstart -Type "-$Protocol" -Snd $snd -Options $g_Config.Optimized -OutDir $OutDirOpt -Fname "$Fname.$snd.OPT.iter$i" -NoDumpParam $NoDumpParam
-                test_recv
-            } 
-            # output default commands
-            if ($null -ne  $g_Config.Default) {
-                test_send -Iter $Iter -Port $portstart -Type "-$Protocol" -Snd $snd -Options $g_Config.Default -OutDir $OutDirDefault -Fname "$Fname.$snd.iter$i" -NoDumpParam $NoDumpParam
-                test_recv
-            }
-        }
-    }
-}
 
 function test_l4ping_generate {
     [CmdletBinding()]
     Param(
         [parameter(Mandatory=$true)] [String] $OutDir
     )
-    # Normalize output directory
-    $dir = $OutDir
-    # create default and optimized directory if not null in config to store commands in
-    $dirDefault = $null
-    $dirOptimized = $null
-    if ($null -ne $g_Config.Default) {
-        $dirDefault = (Join-Path -Path $OutDir -ChildPath "default") 
-    }
-    if ($null -ne $g_Config.Optimized) {
-        $dirOptimized = (Join-Path -Path $OutDir -ChildPath "optimized") 
-    }
-
-    # Transports
-    foreach ($Protocol in $g_Config.Protocol) {
-        # Iteration Tests capturing each transaction time
-        # - Measures over input samples
-        if ($g_Config.PingIterations -gt 0) {
-            Write-Output "" # banner -Msg "Iteration Tests: [$Protocol] operations per bounded iterations"
-            test_protocol -Iter "-i $($g_Config.PingIterations)" -Protocol $Protocol -OutDirOpt $dirOptimized -OutDirDefault $dirDefault -Fname "$Protocol.i$($g_Config.PingIterations)"
-        }
-        # Transactions per 10s
-        # - Measures operations per bounded time.
-        if ($g_Config.Time -gt 0) {
-            Write-Output "" # banner -Msg "Time Tests: [$Protocol] operations per bounded time"
-            test_protocol -Iter "-t $($g_Config.Time)" -Protocol $Protocol -OutDirOpt $dirOptimized -OutDirDefault $dirDefault -Fname "$Protocol.t$($g_Config.Time)" -NoDumpParam $true
-        }
+    $Fname = "tcp.m$($g_Config.Measures)"
+    for ($i=0; $i -lt $g_Config.Iterations; $i++) {
+        # vary port number
+        [int] $portstart = $g_Config.StartPort + ($i * $g_Config.Iterations)
+        # output optimized commands
+        test_send -Port $portstart -OutDir $OutDir -Fname "$Fname.send.$($g_Config.ByteSizeSend).iter$i"
+        test_recv -Port $portstart -OutDir $OutDir -Fname "$Fname.recv.$($g_Config.ByteSizeRecv).iter$i"
     }
 } # test_l4ping_generate()
 
 function validate_config {
     $isValid = $true
-    $int_vars = @('Iterations', 'StartPort', 'Time', 'PingIterations')
+    $int_vars = @('Iterations', 'StartPort', 'Measures')
     foreach ($var in $int_vars) {
         if (($null -eq $g_Config.($var)) -or ($g_Config.($var) -lt 0)) {
             Write-Output "$var is required and must be greater than or equal to 0"
             $isValid = $false
         }
-    }
-    $valid_protocols = @('tcp', 'udp', 'raw')
-    if ($null -ne $g_Config.Protocol) {
-        foreach ($proto in $g_Config.Protocol) {
-            if (-Not $valid_protocols.Contains($proto)) {
-                Write-Output "$proto is not a valid protocol"
-                $isValid = $false
-            }
-        }
-    } else {
-        Write-Output "Protocol cannot be null"
-        $isValid = $false
-    }
-    $valid_send = @('b', 'nb', 'ove', 'ovc', 'ovp', 'sel')
-    if ($null -ne $g_Config.SendMethod) {
-        foreach ($snd in $g_Config.SendMethod) {
-            if (-Not $valid_send.Contains($snd)) {
-                Write-Output "$snd is not a valid send method"
-                $isValid = $false
-            }
-        }
-    } else {
-        Write-Output "SendMethod cannot be null"
-        $isValid = $false
     }
     return $isValid
 } # validate_config()
