@@ -263,6 +263,10 @@ $WriteToRemoteEventLog = {
     Mandatory (when running tests on containers over SSH) parameter.
     The script will attempt to run the tests using PowerShell 7 remoting over SSH.
 
+.PARAMETER RunWithSinglePSSession
+    Mandatory (when running tests on containers over SSH) parameter.
+    When not specified ProcessCommands will create a new remote PowerShell session for each tool run (legacy behavior).
+
 .DESCRIPTION
     Please run SetupTearDown.ps1 -Setup on the DestIp and SrcIp machines independently to help with PSRemoting setup
     This function is dependent on the output of PERFTEST.PS1 function
@@ -339,7 +343,15 @@ Function ProcessCommands{
     [Parameter(Mandatory=$True, ParameterSetName="RunOnContainers")]
     [Parameter(Mandatory=$True, ParameterSetName="LocalTransmitOnContainers")]
     [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOnContainers")]
-    [Switch] $RunOnContainers=$False
+    [Switch] $RunOnContainers=$False,
+
+    [Parameter(Mandatory=$False, ParameterSetName="Default")]
+    [Parameter(Mandatory=$False, ParameterSetName="LocalTransmit")]
+    [Parameter(Mandatory=$False, ParameterSetName="RemoteTransmit")]
+    [Parameter(Mandatory=$True, ParameterSetName="RunOnContainers")]
+    [Parameter(Mandatory=$True, ParameterSetName="LocalTransmitOnContainers")]
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOnContainers")]
+    [Switch] $RunWithSinglePSSession=$False
     )
 
     $recvComputerName = $DestIp
@@ -393,77 +405,96 @@ Function ProcessCommands{
         }
     }
 
-    try {
-        # Establish the Remote PS session with Receiver
-        $recvPSSession = New-PSSession @RecvSessionArgs
+    $ToolList = @('ctstraffic', 'cps', 'ntttcp', 'latte', 'l4ping')
+    [String] $workingDir = $CommandsDir.TrimEnd("\")
+    
+    $recvPSsession = $null
+    $sendPSsession = $null
+    $transmitPSSession = $null
 
-        if($recvPSsession -eq $null) {
-            throw "Error connecting to Receiver Host: $($RecvComputerName)"
-        }
+    foreach ($tool in $ToolList)
+    {
+        try {
+            if ($recvPSSession -EQ $null)
+            {
+                LogWrite "Establish new Remote PS session with Receiver"
+                $recvPSSession = New-PSSession @RecvSessionArgs
 
-        # Establish the Remote PS session with Sender
-        $sendPSSession = New-PSSession @SendSessionArgs
-
-        if($sendPSsession -eq $null) {
-            throw "Error connecting to Sender Host: $($SendComputerName)"
-        }
-
-        $transmitPSSession = $null 
-        # Establish the Remote PS session with Event Transmit Receiver
-        if ($TransmitEventsRemotely) {
-            $transmitPSSession = New-PSSession @TransmitSessionArgs 
-            if ($transmitPSSession -eq $null) {
-                throw "Error connecting to Transmit Host: $($TransmitComputerName)"
+                if($recvPSsession -eq $null) {
+                    throw "Error connecting to Receiver Host: $($RecvComputerName)"
+                }
             }
-        }
 
-        [String] $workingDir = $CommandsDir.TrimEnd("\")
+            if ($sendPSSession -EQ $null)
+            {
+                LogWrite "Establish new Remote PS session with Sender"
+                $sendPSSession = New-PSSession @SendSessionArgs
 
-        if (Test-Path -Path "$commandsDir\ctstraffic") {
-            LogWrite "Processing ctsTraffic commands"
-            ProcessToolCommands -Toolname "ctsTraffic" -RecvPSSession $recvPSSession -SendPSSession $sendPSSession -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitPSSession $transmitPSSession -RunOnContainers $RunOnContainers
-            LogWrite "Done processing ctsTraffic commands`n"
-        }
-        
-        if (Test-Path -Path "$commandsDir\cps") {
-            LogWrite "Processing cps commands"
-            ProcessToolCommands -Toolname "cps" -RecvPSSession $recvPSSession -SendPSSession $sendPSSession -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitPSSession $transmitPSSession -RunOnContainers $RunOnContainers
-            LogWrite "Done processing cps commands`n"
-        }
-        
-        if (Test-Path -Path "$commandsDir\ntttcp") {
-            LogWrite "Processing ntttcp commands"
-            ProcessToolCommands -Toolname "ntttcp" -RecvPSSession $recvPSSession -SendPSSession $sendPSSession -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitPSSession $transmitPSSession -RunOnContainers $RunOnContainers
-            LogWrite "Done processing ntttcp commands`n"
-        }
-        
-        if (Test-Path -Path "$commandsDir\latte") {
-            LogWrite "Processing latte commands"
-            ProcessToolCommands -Toolname "latte" -RecvPSSession $recvPSSession -SendPSSession $sendPSSession -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitPSSession $transmitPSSession -RunOnContainers $RunOnContainers
-            LogWrite "Done processing latte commands`n"
-        }
+                if($sendPSsession -eq $null) {
+                    throw "Error connecting to Sender Host: $($SendComputerName)"
+                }
+            }
 
-        if (Test-Path -Path "$commandsDir\l4ping") {
-            LogWrite "Processing l4ping commands"
-            ProcessToolCommands -Toolname "l4ping" -RecvPSSession $recvPSSession -SendPSSession $sendPSSession -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitPSSession $transmitPSSession -RunOnContainers $RunOnContainers
-            LogWrite "Done processing l4ping commands`n"
+            if ($transmitPSSession -EQ $null -AND $TransmitEventsRemotely)
+            {
+                LogWrite "Establish new Remote PS session with Event Transmit Receiver"
+                $transmitPSSession = New-PSSession @TransmitSessionArgs
+
+                if ($transmitPSSession -eq $null) {
+                    throw "Error connecting to Transmit Host: $($TransmitComputerName)"
+                }
+            }
+
+            if (Test-Path -Path "$commandsDir\$tool") {
+                LogWrite "Processing $tool commands"
+
+                ProcessToolCommands `
+                    -Toolname $tool `
+                    -RecvPSSession $recvPSSession `
+                    -SendPSSession $sendPSSession `
+                    -CommandsDir $workingDir `
+                    -Bcleanup $Bcleanup `
+                    -BZip $ZipResults `
+                    -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds `
+                    -PollTimeInSeconds $PollTimeInSeconds `
+                    -TransmitEventsLocally $TransmitEventsLocally `
+                    -TransmitEventsRemotely $TransmitEventsRemotely `
+                    -TransmitPSSession $transmitPSSession `
+                    -RunOnContainers $RunOnContainers
+            }
+
+        } # end try
+        catch {
+           LogWrite "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
         }
+        finally {
 
-        LogWrite "ProcessCommands Done!"
-        Move-Item -Path $Logfile -Destination "$workingDir" -Force -ErrorAction Ignore
+            if (-NOT $RunWithSinglePSSession)
+            {
+                LogWrite "Cleaning up Remote PS Sessions"
 
-    } # end try
-    catch {
-       LogWrite "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
-    }
-    finally {
+                if ($null -NE $recvPSSession) {Remove-PSSession $recvPSSession -ErrorAction Ignore; $recvPSSession = $null}
+                if ($null -NE $sendPSSession) {Remove-PSSession $sendPSSession -ErrorAction Ignore; $sendPSsession = $null}
+                if ($null -NE $transmitPSSession) {Remove-PSSession $transmitPSSession -ErrorAction Ignore; $transmitPSSession = $null}
+            }
+
+            LogWrite "Done processing $tool commands`n"
+        } #finally
+    } #foreach
+
+    # If we haven't cleaned up the sessions, let's do it now
+    if ($RunWithSinglePSSession)
+    {
         LogWrite "Cleaning up Remote PS Sessions"
-        # Clean up the PS Sessions
-        if ($null -ne $recvPSSession) {Remove-PSSession $recvPSSession -ErrorAction Ignore}
-        if ($null -ne $sendPSSession) {Remove-PSSession $sendPSSession -ErrorAction Ignore}
-        if ($null -ne $transmitPSSession) {Remove-PSSession $transmitPSSession -ErrorAction Ignore}
 
-    } #finally
+        if ($null -NE $recvPSSession) {Remove-PSSession $recvPSSession -ErrorAction Ignore; $recvPSSession = $null}
+        if ($null -NE $sendPSSession) {Remove-PSSession $sendPSSession -ErrorAction Ignore; $sendPSsession = $null}
+        if ($null -NE $transmitPSSession) {Remove-PSSession $transmitPSSession -ErrorAction Ignore; $transmitPSSession = $null}
+    }
+
+    LogWrite "ProcessCommands Done!"
+    Move-Item -Path $Logfile -Destination "$workingDir" -Force -ErrorAction Ignore
+
 } # ProcessCommands()
 
 
