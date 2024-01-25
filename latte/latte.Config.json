@@ -14,8 +14,8 @@
 
     "LatteAzure": 
     {
-        "Iterations"     : 0,
-        "Protocol"       : ["udp"],
+        "Iterations"     : 20,
+        "Protocol"       : ["tcp", "udp"],
         "StartPort"      : 50000,
         "Time"           : 0,
         "PingIterations" : 10000,
