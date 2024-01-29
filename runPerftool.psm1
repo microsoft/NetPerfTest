@@ -286,40 +286,43 @@ Function ProcessCommands{
     [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")] [SecureString] $TransmitPassword  
     )
 
-    if ($TransmitEventsRemotely)
-    {
-        RunTestCommands `
-            -DestIp $DestIp `
-            -SrcIp $SrcIp `
-            -CommandsDir $CommandsDir `
-            -DestIpUserName $DestIpUserName `
-            -DestIpPassword $DestIpPassword `
-            -SrcIpUserName $SrcIpUserName `
-            -SrcIpPassword $SrcIpPassword `
-            -Bcleanup $Bcleanup `
-            -ZipResults $ZipResults `
-            -PollTimeInSeconds $PollTimeInSeconds `
-            -TransmitEventsRemotely `
-            -TransmitIP $TransmitIP `
-            -TransmitUserName $TransmitUserName `
-            -TransmitPassword $TransmitPassword
-    }
-    else
-    {
-        RunTestCommands `
-            -DestIp $DestIp `
-            -SrcIp $SrcIp `
-            -CommandsDir $CommandsDir `
-            -DestIpUserName $DestIpUserName `
-            -DestIpPassword $DestIpPassword `
-            -SrcIpUserName $SrcIpUserName `
-            -SrcIpPassword $SrcIpPassword `
-            -Bcleanup $Bcleanup `
-            -ZipResults $ZipResults `
-            -PollTimeInSeconds $PollTimeInSeconds `
-            -TransmitEventsLocally:$TransmitEventsLocally
+    $recvComputerName = $DestIp
+    $sendComputerName = $SrcIp
+
+    [PSCredential] $sendIPCreds = New-Object System.Management.Automation.PSCredential($SrcIpUserName, $SrcIpPassword)
+
+    [PSCredential] $recvIPCreds = New-Object System.Management.Automation.PSCredential($DestIpUserName, $DestIpPassword)
+
+    [pscredential] $transmitIPCreds = $null 
+
+    if ($TransmitEventsRemotely) {
+        [pscredential] $transmitIPCreds = New-Object System.Management.Automation.PSCredential($TransmitUserName, $TransmitPassword)
     }
 
+    [String] $workingDir = $CommandsDir.TrimEnd("\")
+
+    if (Test-Path -Path "$commandsDir\ctstraffic") {
+        LogWrite "Processing ctsTraffic commands" $true 
+        ProcessToolCommands -Toolname "ctsTraffic" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds    
+    }
+   
+    if (Test-Path -Path "$commandsDir\cps") {
+        LogWrite "Processing cps commands" $true
+        ProcessToolCommands -Toolname "cps" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
+    }
+
+    if (Test-Path -Path "$commandsDir\ntttcp") {
+        LogWrite "Processing ntttcp commands" $true
+        ProcessToolCommands -Toolname "ntttcp" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
+    }
+
+    if (Test-Path -Path "$commandsDir\latte") {
+        LogWrite "Processing latte commands" $true
+        ProcessToolCommands -Toolname "latte" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
+    }
+
+    LogWrite "ProcessCommands Done!" $true
+    Move-Item -Path $Logfile -Destination "$workingDir" -Force -ErrorAction Ignore
 } # ProcessCommands()
 
 <#
@@ -576,7 +579,7 @@ Function RunTestCommands{
             if (Test-Path -Path "$commandsDir\$tool") {
                 LogWrite "Processing $tool commands"
 
-                ProcessToolCommands `
+                ProcessToolCommandsForSession `
                     -Toolname $tool `
                     -RecvPSSession $recvPSSession `
                     -SendPSSession $sendPSSession `
@@ -634,6 +637,370 @@ Function RunTestCommands{
 .SYNOPSIS
     This function reads an input file of commands and orchestrates the execution of these commands on remote machines.
 
+.PARAMETER RecvComputerName
+    The IpAddr of the destination machine that's going to play the Receiver role and wait to receive data for the duration of the throughput tests
+
+.PARAMETER SendComputerName
+    The IpAddr of the sender machine that's going to send data for the duration of the throughput tests
+
+.PARAMETER CommandsDir
+    The location of the folder that's going to have the auto generated commands for the tool.
+
+.PARAMETER Toolname
+    Default value: ntttcp. The function parses the Send and Recv files for the tool specified here
+    and reads the commands and executes them on the SrcIp and DestIp machines
+
+.PARAMETER bCleanup
+    Required parameter. The function creates folders and subfolders on remote machines to house the result files of the individual commands. bCleanup param decides 
+    if the folders should be left as is, or if they should be cleaned up
+
+.PARAMETER SendComputerCreds
+    Optional PSCredentials to connect to the Sender machine
+
+.PARAMETER RecvComputerCreds
+    Optional PSCredentials to connect to the Receiver machine
+
+.PARAMETER BZip
+    Required parameter. The function creates folders and subfolders on remote machines to house the result files of the individual commands. BZip param decides 
+    if the folders should be compressed or left uncompressed before copying over.
+
+.PARAMETER TimeoutValueBetweenCommandPairs
+    Optional parameter to configure the amount of time the tool waits (in seconds) between command pairs before moving to the next set of commands
+    Note that for certain commands this value will get bloated to account for tool params like runtime, warm up time, cool down time, etc.
+
+.PARAMETER PollTimeInSeconds
+    Optional parameter to configure the amount of time the tool waits (in seconds) before waking up to check if the TimeoutValueBetweenCommandPairs period has elapsed
+
+.PARAMETER TransmitEventsLocally
+    Optional switch to enable the transmission of event log entries to the local computer. These event logs can be used
+    to synchronize other tools with NPT commands.
+
+.PARAMETER TransmitEventsRemotely
+    Optional switch to enable the transmission of event log entries to a remote computer. These event logs can be used
+    to synchronize other tools with NPT commands.
+
+.PARAMETER TransmitComputerName
+    The IP address of the remote machine which will receive event log transmissions.
+ 
+.PARAMETER TransmitComputerCreds
+    Optional PSCredentials to connect to the machine which will receive event log transmissions.
+
+    #>
+Function ProcessToolCommands{
+param(
+    [Parameter(Mandatory=$True)] [string]$RecvComputerName,
+    [Parameter(Mandatory=$True)] [string]$SendComputerName,
+    [Parameter(Mandatory=$True)] [string]$CommandsDir,
+    [Parameter(Mandatory=$True)] [string]$Bcleanup, 
+    [Parameter(Mandatory=$False)] [string]$Toolname = "ntttcp", 
+    [Parameter(Mandatory=$False)] [PSCredential] $SendComputerCreds = [System.Management.Automation.PSCredential]::Empty,
+    [Parameter(Mandatory=$False)] [PSCredential] $RecvComputerCreds = [System.Management.Automation.PSCredential]::Empty,
+    [Parameter(Mandatory=$True)] [bool]$BZip,
+    [Parameter(Mandatory=$False)] [int] $TimeoutValueBetweenCommandPairs = 60,
+    [Parameter(Mandatory=$False)] [int] $PollTimeInSeconds = 5, 
+    [Parameter(Mandatory=$False)] [Boolean] $TransmitEventsLocally=$false,
+    [Parameter(Mandatory=$False)] [Boolean] $TransmitEventsRemotely=$false,
+    [Parameter(Mandatory=$False)] [String] $TransmitComputerName = "",  
+    [Parameter(Mandatory=$False)] [pscredential] $TransmitComputerCreds = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    [bool] $gracefulCleanup = $False
+
+    $toolpath = ".\{0}" -f $Toolname
+    $toolexe = "{0}.exe" -f $Toolname
+
+    $recvCredSplat = @{}
+    if ($RecvComputerCreds -ne [System.Management.Automation.PSCredential]::Empty) {
+        $recvCredSplat['Credential'] = $RecvComputerCreds
+    }
+
+    $sendCredSplat = @{}
+    if ($SendComputerCreds -ne [System.Management.Automation.PSCredential]::Empty) {
+        $sendCredSplat['Credential'] = $SendComputerCreds
+    }
+
+    $transmitCredSplat = @{}
+    if ($TransmitComputerCreds -ne [System.Management.Automation.PSCredential]::Empty) {
+        $transmitCredSplat['Credential'] = $TransmitComputerCreds
+    }
+
+    try {
+        # Establish the Remote PS session with Receiver
+        $recvPSSession = New-PSSession -ComputerName $RecvComputerName @recvCredSplat
+
+        if($recvPSsession -eq $null) {
+            LogWrite "Error connecting to Host: $($RecvComputerName)"
+            return
+        }
+
+        # Establish the Remote PS session with Sender
+        $sendPSSession = New-PSSession -ComputerName $SendComputerName @sendCredSplat
+
+        if($sendPSsession -eq $null) {
+            LogWrite "Error connecting to Host: $($SendComputerName)"
+            return
+        }
+
+        $transmitPSSession = $null 
+        # Establish the Remote PS session with Event Transmit Receiver
+        if ($TransmitEventsRemotely) {
+            $transmitPSSession = New-PSSession -ComputerName $TransmitComputerName @transmitCredSplat 
+            if ($transmitPSSession -eq $null) {
+                LogWrite "Error connecting to Host: $($TransmitComputerName)"
+                return 
+            }
+        }   
+
+        # Construct the input file to read for commands.
+        $sendCmdFile = Join-Path -Path $CommandsDir -ChildPath "\$Toolname\$Toolname.Commands.Send.txt"
+        $recvCmdFile = Join-Path -Path $CommandsDir -ChildPath "\$Toolname\$Toolname.Commands.Recv.txt"
+
+        # Ensure that remote machines have the directory created for results gathering. 
+        $recvFolderExists = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir)
+        $sendFolderExists = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir)
+
+        # Clean up the Receiver/Sender folders on remote machines, if they exist so that we dont capture any stale logs
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Receiver" 
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Sender"
+
+        # Create dirs and subdirs for each of the supported tools
+        # Invoke-Command calls set to null in order to suppress unwanted output
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\cps\Mode0") 
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\cps\Mode0")
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\cps\Mode1")
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\cps\Mode1")
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\cps\Mode2")
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\cps\Mode2")
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ntttcp\tcp") 
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ntttcp\tcp") 
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ntttcp\udp") 
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ntttcp\udp") 
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\latte\optimized")
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\latte\default")
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\latte\optimized")
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\latte\default") 
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ctsTraffic\tcp") 
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ctsTraffic\udp")  
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ctsTraffic\tcp")  
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ctsTraffic\udp")  
+
+        #copy the tool exe to the remote machines
+        Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
+        Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
+
+        # Setup firewall rules so that traffic can go through
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("Allow$Toolname", "$CommandsDir\Receiver\$toolexe")
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockEnableFirewallRules -ArgumentList ("Allow$Toolname", "$CommandsDir\Sender\$toolexe") 
+
+        $recvCommandsReader = [System.IO.File]::OpenText($recvCmdFile)
+        $sendCommandsReader = [System.IO.File]::OpenText($sendCmdFile)
+        $recvCommands = [Array] @()
+
+        while ($null -ne ($recvCmd = $recvCommandsReader.ReadLine()) ) {
+            $recvCommands += ,$recvCmd
+        }
+        while ($null -ne ($sendCmd = $sendCommandsReader.ReadLine()) ) {
+            $sendCommands += ,$sendCmd
+        }
+        $recvCommandsReader.close()
+        $sendCommandsReader.close()
+
+        $sw = [diagnostics.stopwatch]::StartNew()
+        $numCmds = [math]::Min($recvCommands.Count, $sendCommands.Count)
+        $i = 0
+        while($i -lt $numCmds) {
+            #change the command to add path to tool
+            $recvCmd = $recvCommands[$i]
+            $sendCmd = $sendCommands[$i]
+            $unexpandedRecvCmd = $recvCmd
+
+            $recvCmd =  $recvCmd -ireplace [regex]::Escape("$toolexe"), "$CommandsDir\$toolexe"
+            $sendCmd =  $sendCmd -ireplace [regex]::Escape("$toolexe"), "$CommandsDir\$toolexe"
+            $cmdPairCompleted = $false 
+            # Work here to invoke recv commands
+            # Since we want the files to get generated under a subfolder, we replace the path to include the subfolder
+            $recvCmd =  $recvCmd -ireplace [regex]::Escape($CommandsDir), "$CommandsDir\Receiver"
+            LogWrite "Invoking Cmd - Machine: $recvComputerName Command: $recvCmd"
+            LogWrite "Invoking $Toolname Cmd $($i + 1) / $numCmds ..." $true
+            $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRunToolCmd -ArgumentList $recvCmd 
+            
+            # Fix for intermittent race condition where the Send process gets lauched before Recv and the test bails out because the handshake fails
+            start-sleep -seconds $PollTimeInSeconds
+
+            # Work here to invoke send commands
+            # Since we want the files to get generated under a subfolder, we replace the path to include the subfolder
+            $sendCmd =  $sendCmd -ireplace [regex]::Escape($CommandsDir), "$CommandsDir\Sender"
+            LogWrite "Invoking Cmd - Machine: $sendComputerName Command: $sendCmd"  
+            $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRunToolCmd -ArgumentList $sendCmd
+
+            [int] $timeout = GetActualTimeOutValue -AdditionalTimeout $TimeoutValueBetweenCommandPairs -Line $sendCmd
+ 
+
+
+            if ($TransmitEventsLocally -or $TransmitEventsRemotely) {
+                [string] $outputFileName = GetOutputFileName -Line $sendCmd
+                [int] $duration = GetCmdDuration -Line $sendCmd
+                
+                $json = @{
+                    "outputFileName"    = $outputFileName
+                    "duration"          = $duration
+                } | ConvertTo-Json
+                $jsonBytes = [System.Text.Encoding]::Unicode.GetBytes($json)
+                
+                if ($TransmitEventsLocally) {
+                    Write-EventLog -LogName "NPT" -Source "NPT" -EventID 1001 -Message $unexpandedRecvCmd -RawData $jsonBytes -ErrorAction Stop
+                    
+                } else {
+                    $null = Invoke-Command -Session $transmitPSSession -ScriptBlock $WriteToRemoteEventLog -ArgumentList ($unexpandedRecvCmd, $jsonBytes)
+                }
+            } 
+            
+            # non blocking loop to check if the process made a clean exit
+
+            # Calculate actual timeout value.
+            # For tools such as ntttcp, we may need to add additional #s for runtime, wu and cd times 
+            
+            LogWrite "Waiting for $timeout seconds ..."
+            $sw.Reset()
+            $sw.Start()
+
+            while (([math]::Round($sw.Elapsed.TotalSeconds,0)) -lt $timeout){
+
+                start-sleep -seconds $PollTimeInSeconds
+
+                $checkRecvProcessExit = Invoke-Command -Session $recvPSSession -ScriptBlock $CheckProcessExitScriptBlock -ArgumentList "$Toolname"
+                $checkSendProcessExit = Invoke-Command -Session $sendPSSession -ScriptBlock $CheckProcessExitScriptBlock -ArgumentList "$Toolname"
+
+                if (($checkRecvProcessExit -eq $null)-and ($checkSendProcessExit -eq $null)){
+                    $cmdPairCompleted = $true
+                    LogWrite "$Toolname exited on both Src and Dest machines"
+                    break
+                }
+
+                if(($Toolname -eq "ctsTraffic") -and ($checkSendProcessExit -eq $null) ) {
+                    # There's no time-based shutoff with ctstraffic servers, so recv machine will remain running until
+                    # we send it a task kill command
+                    LogWrite "$Toolname exited on Src machine, proceeding to shut down on Dst machine"
+                    $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
+                    break
+                } 
+            } 
+
+            LogWrite "Complete`n" $true
+            $sw.Stop()
+            
+            #Wait for disk I/O to be completed
+            Write-VolumeCache (get-location).Drive.Name
+
+            # If command pair didnt gracefully exit, do the logging, cleanup here
+            if(-Not $cmdPairCompleted) {
+                $checkRecvProcessExit = Invoke-Command -Session $recvPSSession -ScriptBlock $CheckProcessExitScriptBlock -ArgumentList "$Toolname"
+                $checkSendProcessExit = Invoke-Command -Session $sendPSSession -ScriptBlock $CheckProcessExitScriptBlock -ArgumentList "$Toolname"
+
+                if ($checkRecvProcessExit -ne $null) {
+                    LogWrite (" ++ {0} on Receiver did not exit cleanly... Timer Elapsed Value: {1}" -f $Toolname, ($sw.elapsed.TotalSeconds))
+                }
+                if ($checkSendProcessExit -ne $null) {
+                    LogWrite (" ++ {0} on Sender did not exit cleanly...  Timer Elapsed Value: {1}" -f $Toolname, ($sw.elapsed.TotalSeconds))
+                }
+            }
+
+            #Since time is up, clean up any processes that failed to exit gracefully so that the new commands can be issued
+            $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
+            $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
+
+            #Add sleep between before running the next command pair
+            start-sleep -seconds $PollTimeInSeconds
+            $i += 1
+        }
+
+        LogWrite "Test runs completed. Collecting results..."
+
+        if ($BZip -eq $true) {
+            #Zip the files on remote machines
+
+            $null = Invoke-Command -Session $recvPSSession -ScriptBlock $CreateZipScriptBlock -ArgumentList ("$CommandsDir\Receiver\$Toolname", "$CommandsDir\Recv.zip")
+            $null = Invoke-Command -Session $sendPSSession -ScriptBlock $CreateZipScriptBlock -ArgumentList ("$CommandsDir\Sender\$Toolname", "$CommandsDir\Send.zip")
+
+            Remove-Item -Force -Path ("{0}\{1}_Receiver.zip" -f $CommandsDir, $Toolname) -Recurse -ErrorAction SilentlyContinue
+            Remove-Item -Force -Path ("{0}\{1}_Sender.zip" -f $CommandsDir, $Toolname) -Recurse -ErrorAction SilentlyContinue
+
+            #copy the zip files from remote machines to the current (orchestrator) machines
+            Copy-Item -Path "$CommandsDir\Recv.zip" -Destination ("{0}\{1}_Receiver.zip" -f $CommandsDir, $Toolname) -FromSession $recvPSSession -Force
+            Copy-Item -Path "$CommandsDir\Send.zip" -Destination ("{0}\{1}_Sender.zip" -f $CommandsDir, $Toolname) -FromSession $sendPSSession -Force
+
+            $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Recv.zip"
+            $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Send.zip"
+        } else {
+
+            Remove-Item -Force -Path ("{0}\{1}_Receiver" -f $CommandsDir, $Toolname) -Recurse -ErrorAction SilentlyContinue
+            Remove-Item -Force -Path ("{0}\{1}_Sender" -f $CommandsDir, $Toolname) -Recurse -ErrorAction SilentlyContinue
+
+            #copy just the entire results folder from remote machines to the current (orchestrator) machine
+            Copy-Item -Path "$CommandsDir\Receiver\$Toolname\." -Recurse -Destination ("{0}\{1}_Receiver" -f $CommandsDir, $Toolname) -FromSession $recvPSSession -Force
+            Copy-Item -Path "$CommandsDir\Sender\$Toolname\." -Recurse -Destination ("{0}\{1}_Sender" -f $CommandsDir, $Toolname) -FromSession $sendPSSession -Force
+        }
+
+        if ($Bcleanup -eq $True) { 
+            LogWrite "Cleaning up folders on Machine: $recvComputerName"
+
+            #clean up the folders and files we created
+            if($recvFolderExists -eq $false) {
+                 # The folder never existed in the first place. we need to clean up the directories we created
+                 $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRemoveFolderTree -ArgumentList "$CommandsDir"
+            } else {
+                # this folder existed earlier on the machine. Leave the directory alone
+                # Remove just the child directories and the files we created. 
+                $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Receiver"
+            }
+
+            LogWrite "Cleaning up folders on Machine: $sendComputerName"
+
+            if($sendFolderExists -eq $false) {
+                $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRemoveFolderTree -ArgumentList "$CommandsDir"
+            } else {
+                # this folder existed earlier on the machine. Leave the directory alone
+                # Remove just the child directories and the files we created. Leave the directory alone
+                $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockRemoveFileFolder -ArgumentList "$CommandsDir\Sender"
+            }
+        } # if ($Bcleanup -eq $true)
+        $gracefulCleanup = $True
+    } # end try
+    catch {
+       LogWrite "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
+    }
+    finally {
+        if($gracefulCleanup -eq $False)
+        {
+
+            $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
+            $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
+
+        }
+
+        LogWrite "Cleaning up the firewall rules that were created as part of script run..."
+        # Clean up the firewall rules that this script created
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCleanupFirewallRules -ArgumentList (("Allow{0}In" -f $Toolname))
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCleanupFirewallRules -ArgumentList (("Allow{0}Out" -f $Toolname))
+
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCleanupFirewallRules -ArgumentList (("Allow{0}In" -f $Toolname))
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCleanupFirewallRules -ArgumentList (("Allow{0}Out" -f $Toolname))
+
+        LogWrite "Cleaning up Remote PS Sessions"
+        # Clean up the PS Sessions
+        Remove-PSSession $sendPSSession -ErrorAction Ignore
+        Remove-PSSession $recvPSSession -ErrorAction Ignore
+
+        # Clean up event transmission PS session, if one was opened
+        if ($null -ne $transmitPSSession) {Remove-PSSession $transmitPSSession -ErrorAction Ignore}
+
+    } #finally
+} # ProcessToolCommands()
+
+<#
+.SYNOPSIS
+    This function reads an input file of commands and orchestrates the execution of these commands on remote machines.
+
 .PARAMETER RecvPSSession
     The PowerShell session to the destination machine that's going to play the Receiver role and wait to receive data for the duration of the throughput tests
 
@@ -677,7 +1044,7 @@ Function RunTestCommands{
     Optional switch to disable configuration of the firewall rules as part of the test pass. Should be true when running with containers.
 
     #>
-Function ProcessToolCommands{
+Function ProcessToolCommandsForSession{
 param(
     [Parameter(Mandatory=$True)] [System.Management.Automation.Runspaces.PSSession]$RecvPSSession,
     [Parameter(Mandatory=$True)] [System.Management.Automation.Runspaces.PSSession]$SendPSSession,
@@ -945,4 +1312,4 @@ param(
         }
 
     } #finally
-} # ProcessToolCommands()
+} # ProcessToolCommandsForSession()

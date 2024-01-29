@@ -2,8 +2,8 @@ Parameters pulled from source here:
 https://microsoft.visualstudio.com/OS/_git/os.2020?path=/onecore/vm/dv/net/tools/l4ping/PingApp.cpp&_a=contents&version=GBofficial/main
 
 l4ping [options]
--S <send size>          bytes to send (Default: 4)
--R <receive size>       bytes to receive (Default: 4)
+-S <send size>          bytes to send (Default: 4, Min: 1, Max: 65535)
+-R <receive size>       bytes to receive (Default: 4, Min: 1, Max: 65535)
 -s <address:port>       (Server param) server bind to address:port
 -c <address:port>       (Client param) client connect to server address:port
 -m <measures>           (Client param) count of measures to take (Default: 1,000,000)

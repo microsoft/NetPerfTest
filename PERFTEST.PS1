@@ -4,24 +4,24 @@
 Param( 
     [parameter(Mandatory=$true)]  [string] $SrcIp, 
     [parameter(Mandatory=$true)]  [string] $DestIp,
-    [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
+    [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = '',
     
-    [ValidateSet("Default", "Azure", "Detail", "Max")]
-    [parameter(Mandatory=$false)] [string] $Config = "Default",
-    [parameter(Mandatory=$false)]  [Array] $ToolList = @("ntttcp", "latte", "l4ping", "cps", "ctstraffic")
+    [ValidateSet('Default', 'Azure', 'Detail', 'Max')]
+    [parameter(Mandatory=$false)] [string] $Config = 'Default',
+    [parameter(Mandatory=$false)]  [Array] $ToolList = @('ntttcp', 'latte', 'l4ping', 'cps', 'ctstraffic')
 )
 
 $scriptName = $MyInvocation.MyCommand.Name 
-$SupportedTools = @("ntttcp", "latte", "l4ping", "cps", "ctstraffic")
+$SupportedTools = @('ntttcp', 'latte', 'l4ping', 'cps', 'ctstraffic')
 $start   = Get-Date
-$version = "2020.09.13.0" # Version within date context
+$version = '2020.09.13.0' # Version within date context
 
 
 
 function input_display {
     $g_path = Get-Location
 
-    Write-Output "============================================"
+    Write-Output '============================================'
     Write-Output "$g_path\$scriptName"
     Write-Output " Date: $start"
     Write-Output " Version: $version" 
@@ -30,7 +30,7 @@ function input_display {
     Write-Output "  -DestIp     = $DestIp"
     Write-Output "  -SrcIp      = $SrcIp"
     Write-Output "  -OutDir     = $OutDir"
-    Write-Output "============================================"
+    Write-Output '============================================'
 } # input_display()
 
 #===============================================

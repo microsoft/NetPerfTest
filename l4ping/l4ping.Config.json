@@ -1,7 +1,17 @@
 {
-    "L4pingDefault": 
+    "L4pingDefault":
     {
         "Iterations"        : 1,
+        "StartPort"         : 50000,
+        "ClientSendSize"    : 4,
+        "ClientReceiveSize" : 4,
+        "PingIterations"    : 10000,
+        "Percentiles"       : "0.0, 0.50, 0.90, 0.99, 0.999, 0.9999, 0.99999, 1.0"
+    },
+
+    "L4pingAzure":
+    {
+        "Iterations"        : 5,
         "StartPort"         : 50000,
         "ClientSendSize"    : 4,
         "ClientReceiveSize" : 4,

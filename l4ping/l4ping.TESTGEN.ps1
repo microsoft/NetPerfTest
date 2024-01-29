@@ -90,13 +90,52 @@ function test_l4ping_generate {
 
 function validate_config {
     $isValid = $true
-    $int_vars = @('Iterations', 'Port', 'ClientSendSize', 'ClientReceiveSize')
+    $int_vars = @('Iterations', 'StartPort', 'ClientSendSize', 'ClientReceiveSize', 'PingIterations')
     foreach ($var in $int_vars) {
-        if (($null -eq $g_Config.($var)) -or ($g_Config.($var) -lt 0)) {
-            Write-Output "$var is required and must be greater than or equal to 0"
+        if (($null -eq $g_Config.($var)) -or ($g_Config.($var) -le 0)) {
+            Write-Host "$var is required and must be greater than 0"
             $isValid = $false
         }
     }
+
+    foreach ($var in @('StartPort', 'ClientSendSize', 'ClientReceiveSize')) {
+        if (($null -eq $g_Config.($var)) -or ($g_Config.($var) -gt 65535)) {
+            Write-Host "$var is required and must be less than or equal to 65535"
+            $isValid = $false
+        }
+    }
+
+    if ([String]::IsNullOrWhitespace($g_Config.Percentiles))
+    {
+        Write-Host "Percentiles is required and must have a value"
+        $isValid = $false
+    }
+    else
+    {
+        foreach ($val in $g_Config.Percentiles.Split(','))
+        {
+            $val = $val.Trim()
+            [double] $DoubleVal = -1.0
+            if (-NOT [Double]::TryParse($val, [ref]$DoubleVal))
+            {
+                Write-Host "Percentile values must be of type double: $val"
+                $isValid = $false
+            }
+
+            if ($DoubleVal -lt 0.0)
+            {
+                Write-Host "Percentile values must be great than or equal to 0.0: $val"
+                $isValid = $false
+            }
+
+            if ($DoubleVal -gt 1.0)
+            {
+                Write-Host "Percentile values must be less than or equal to 1.0: $val"
+                $isValid = $false
+            }
+        }
+    }
+
     return $isValid
 } # validate_config()
 
