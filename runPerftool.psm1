@@ -336,7 +336,7 @@ Function ProcessCommands{
     Required Parameter. Gets domain\username needed to connect to DestIp Machine
 
 .PARAMETER DestIpPassword
-    Mandatory (when RunOnContainers switch is NOT enabled) parameter. 
+    Mandatory (when RunOverSSH switch is NOT enabled) parameter. 
     Gets password needed to connect to DestIp Machine. 
     Password will be stored as Secure String and chars will not be displayed on the console.
 
@@ -344,7 +344,7 @@ Function ProcessCommands{
     Required Parameter. Gets domain\username needed to connect to SrcIp Machine
 
 .PARAMETER SrcIpPassword
-    Mandatory (when RunOnContainers switch is NOT enabled) parameter. 
+    Mandatory (when RunOverSSH switch is NOT enabled) parameter. 
     Gets password needed to connect to SrcIp Machine. 
     Password will be stored as Secure String and chars will not be displayed on the console
 
@@ -390,12 +390,16 @@ Function ProcessCommands{
     Gets password needed to connect to TansmitIp Machine. Password will be stored 
     as Secure String and chars will not be displayed on the console.
 
-.PARAMETER RunOnContainers
-    Mandatory (when running tests on containers over SSH) parameter.
+.PARAMETER RunOverSSH
+    Mandatory (when running tests over SSH) parameter.
     The script will attempt to run the tests using PowerShell 7 remoting over SSH.
 
+.PARAMETER DisableFirewallConfiguration
+    Optional parameter.
+    When specified RunTestCommands will not configure firewall rules as part of the test pass.
+
 .PARAMETER RunWithSinglePSSession
-    Mandatory (when running tests on containers over SSH) parameter.
+    Optional parameter.
     When not specified RunTestCommands will create a new remote PowerShell session for each tool run (legacy behavior).
 
 .DESCRIPTION
@@ -448,43 +452,41 @@ Function RunTestCommands{
     [Int] $PollTimeInSeconds=5,
 
     [Parameter(Mandatory=$True, ParameterSetName="LocalTransmit")]
-    [Parameter(Mandatory=$True, ParameterSetName="LocalTransmitOnContainers")]
+    [Parameter(Mandatory=$True, ParameterSetName="LocalTransmitOverSSH")]
     [Switch] $TransmitEventsLocally,
 
     [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")]
-    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOnContainers")]
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOverSSH")]
     [Switch] $TransmitEventsRemotely,
 
     [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")]
-    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOnContainers")]
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOverSSH")]
     [String] $TransmitIP,
 
     [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")]
-    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOnContainers")]
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOverSSH")]
     [String] $TransmitUserName,
 
     [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmit")]
     [SecureString] $TransmitPassword,
 
-    [Parameter(Mandatory=$True, ParameterSetName="RunOnContainers")]
-    [Parameter(Mandatory=$True, ParameterSetName="LocalTransmitOnContainers")]
-    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOnContainers")]
-    [Switch] $RunOnContainers=$False,
+    [Parameter(Mandatory=$True, ParameterSetName="RunOverSSH")]
+    [Parameter(Mandatory=$True, ParameterSetName="LocalTransmitOverSSH")]
+    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOverSSH")]
+    [Switch] $RunOverSSH,
 
-    [Parameter(Mandatory=$False, ParameterSetName="Default")]
-    [Parameter(Mandatory=$False, ParameterSetName="LocalTransmit")]
-    [Parameter(Mandatory=$False, ParameterSetName="RemoteTransmit")]
-    [Parameter(Mandatory=$True, ParameterSetName="RunOnContainers")]
-    [Parameter(Mandatory=$True, ParameterSetName="LocalTransmitOnContainers")]
-    [Parameter(Mandatory=$True, ParameterSetName="RemoteTransmitOnContainers")]
-    [Switch] $RunWithSinglePSSession=$False
+    [Parameter(Mandatory=$False)]
+    [Switch] $DisableFirewallConfiguration,
+
+    [Parameter(Mandatory=$False)]
+    [Switch] $RunWithSinglePSSession
     )
 
     $recvComputerName = $DestIp
     $sendComputerName = $SrcIp
 
     $RecvSessionArgs = @{}
-    if ($RunOnContainers)
+    if ($RunOverSSH)
     {
         $RecvSessionArgs['HostName'] = $RecvComputerName
         $RecvSessionArgs['UserName'] = $DestIpUserName
@@ -499,7 +501,7 @@ Function RunTestCommands{
     }
 
     $SendSessionArgs = @{}
-    if ($RunOnContainers)
+    if ($RunOverSSH)
     {
         $SendSessionArgs['HostName'] = $SendComputerName
         $SendSessionArgs['UserName'] = $SrcIpUserName
@@ -516,7 +518,7 @@ Function RunTestCommands{
     $TransmitSessionArgs = @{}
     if ($TransmitEventsRemotely)
     {
-        if ($RunOnContainers)
+        if ($RunOverSSH)
         {
             $TransmitSessionArgs['HostName'] = $TransmitComputerName
             $TransmitSessionArgs['UserName'] = $TransmitUserName
@@ -586,7 +588,7 @@ Function RunTestCommands{
                     -TransmitEventsLocally $TransmitEventsLocally `
                     -TransmitEventsRemotely $TransmitEventsRemotely `
                     -TransmitPSSession $transmitPSSession `
-                    -RunOnContainers $RunOnContainers
+                    -DisableFirewallConfiguration $DisableFirewallConfiguration
             }
 
         } # end try
@@ -671,6 +673,9 @@ Function RunTestCommands{
 .PARAMETER TransmitPSSession
     The PowerShell session to the remote machine which will receive event log transmissions.
 
+.PARAMETER DisableFirewallConfiguration
+    Optional switch to disable configuration of the firewall rules as part of the test pass. Should be true when running with containers.
+
     #>
 Function ProcessToolCommands{
 param(
@@ -685,7 +690,7 @@ param(
     [Parameter(Mandatory=$False)] [Boolean] $TransmitEventsLocally=$false,
     [Parameter(Mandatory=$False)] [Boolean] $TransmitEventsRemotely=$false,
     [Parameter(Mandatory=$False)] [System.Management.Automation.Runspaces.PSSession] $TransmitPSSession,
-    [Parameter(Mandatory=$False)] [Boolean] $RunOnContainers=$False
+    [Parameter(Mandatory=$False)] [Boolean] $DisableFirewallConfiguration=$False
     )
 
     [bool] $gracefulCleanup = $False
@@ -733,7 +738,7 @@ param(
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
 
-        if (-NOT $RunOnContainers)
+        if (-NOT $DisableFirewallConfiguration)
         {
             # Setup firewall rules so that traffic can go through
             LogWrite "Creating temporary firewall rules for $Toolname"
@@ -928,7 +933,7 @@ param(
 
         }
 
-        if (-NOT $RunOnContainers)
+        if (-NOT $DisableFirewallConfiguration)
         {
             LogWrite "Cleaning up the firewall rules that were created as part of script run..."
             # Clean up the firewall rules that this script created

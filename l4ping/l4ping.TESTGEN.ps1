@@ -84,7 +84,7 @@ function test_l4ping_generate {
         test_recv -Port $port -ClientReceiveSize $g_Config.ClientReceiveSize -ClientSendSize $g_Config.ClientSendSize
 
         # Output send command
-        test_send -Port $port -ClientReceiveSize $g_Config.ClientReceiveSize -ClientSendSize $g_Config.ClientSendSize -PingIterations $g_Config.PingIterations -Percentiles $g_Config.Percentiles -OutDir $dir -Fname "l4ping$Config.iter$i.csv"
+        test_send -Port $port -ClientReceiveSize $g_Config.ClientReceiveSize -ClientSendSize $g_Config.ClientSendSize -PingIterations $g_Config.PingIterations -Percentiles $g_Config.Percentiles -OutDir $dir -Fname "tcp.i$($g_Config.PingIterations).iter$i.csv"
     }
 } # test_l4ping_generate()
 

@@ -9,27 +9,34 @@
 .PARAMETER Cleanup
     This switch triggers the cleanup path which disables WinRM service, removes the firewall rules that were created earlier for remoting, and also Disables PSRemoting
 
-.PARAMETER SetupContainerHost
-    This switch triggers the setup calls which end up enabling PS Remoting over SSH on the container host machine (generating a public key and installing PowerShell 7)
+.PARAMETER SetupSshRemotingClient
+    This switch triggers the setup calls which end up enabling PS Remoting over SSH on the client machine (this is typically the NPT orchestrator machine)
 
-.PARAMETER SetupContainer
-    This switch triggers the setup calls which end up enabling PS Remoting over SSH on a container (installing and configurating OpenSSH server and PowerShell 7)
+.PARAMETER PrivateKeyPath
+    The file path to the SSH private key file (e.g. '$env:USERPROFILE\.ssh\id_ed25519')
+
+.PARAMETER SetupSshRemotingServer
+    This switch triggers the setup calls which end up enabling PS Remoting over SSH on a server machine (installing and configurating OpenSSH server and PowerShell 7)
 
 .PARAMETER AuthorizedKey
-    The SSH public key generated as part of the SetupContainerHost call. Should be passed to SetupContainer calls for OpenSSH configuration.
+    The SSH public key from the client machine. This should be the key that matches the private key configured on the client.
+    For example, if the private key is $env:USERPROFILE\.ssh\id_ed25519, then you can obtain the public key by running 'Get-Content -Path $env:USERPROFILE\.ssh\id_ed25519.pub')
 
 .DESCRIPTION
     Run this script to setup your machine for PS Remoting so that you can leverage the functionality of runPerfTool.psm1
     Run this script at the end of the tool runs to restore state on the machines.
     Ex: SetupTearDown.ps1 -Setup or SetupTearDown.ps1 -Cleanup
 #>
+
 Param(
-    [Parameter(Mandatory=$True, ParameterSetName="Setup")]              [switch] $Setup,
-    [Parameter(Mandatory=$True, ParameterSetName="Cleanup")]            [switch] $Cleanup,
-    [Parameter(Mandatory=$True, ParameterSetName="SetupContainerHost")] [switch] $SetupContainerHost,
-    [Parameter(Mandatory=$True, ParameterSetName="SetupContainer")]     [switch] $SetupContainer,
-    [Parameter(Mandatory=$True, ParameterSetName="SetupContainer")]     [string] $AuthorizedKey
+    [Parameter(Mandatory=$True, ParameterSetName="Setup")]                  [switch] $Setup,
+    [Parameter(Mandatory=$True, ParameterSetName="Cleanup")]                [switch] $Cleanup,
+    [Parameter(Mandatory=$True, ParameterSetName="SetupSshRemotingClient")] [switch] $SetupSshRemotingClient,
+    [Parameter(Mandatory=$True, ParameterSetName="SetupSshRemotingClient")] [string] $PrivateKeyPath,
+    [Parameter(Mandatory=$True, ParameterSetName="SetupSshRemotingServer")] [switch] $SetupSshRemotingServer,
+    [Parameter(Mandatory=$True, ParameterSetName="SetupSshRemotingServer")] [string] $AuthorizedKey
 )
+
 
 Function SetupRemoting{
 
@@ -41,25 +48,17 @@ Function SetupRemoting{
 
 } # SetupRemoting()
 
-Function SetupSshRemotingOnHost{
+Function SetupSshRemotingClient{
+param(
+    [Parameter(Mandatory=$True)] [string]$PrivateKeyPath
+)
 
     Write-Host "Enabling SSH Remoting on host computer..."
-
-    if (-NOT (Test-Path "$env:USERPROFILE\.ssh\id_ed25519.pub"))
-    {
-        Write-Host "`nGenerating SSH Public Key"
-        ssh-keygen -t ed25519
-    }
-    else
-    {
-        Write-Host "`nUsing existing SSH Public Key"
-    }
-    $authorizedKey = Get-Content -Path $env:USERPROFILE\.ssh\id_ed25519.pub
 
     Write-Host "`nConfigure SSH-Agent with Private Key"
     Get-Service ssh-agent | Set-Service -StartupType Automatic
     Start-Service ssh-agent
-    ssh-add $env:USERPROFILE\.ssh\id_ed25519
+    ssh-add $PrivateKeyPath
 
     if (-NOT (Test-Path "$env:ProgramFiles\PowerShell\7\"))
     {
@@ -73,14 +72,11 @@ Function SetupSshRemotingOnHost{
     }
 
     Write-Host "`nDone"
-    
-    Write-Host "`n`nRun the following command in each of the containers"
-    Write-Host ".\SetUpTearDown.ps1 -SetupContainer -AuthorizedKey '$authorizedKey'"
 
-} # SetupSshRemotingOnHost()
+} # SetupSshRemotingClient()
 
 
-Function SetupSshRemotingOnContainer{
+Function SetupSshRemotingServer{
 param(
     [Parameter(Mandatory=$True)] [string]$AuthorizedKey
 )
@@ -155,7 +151,7 @@ param(
 
     Write-Host "`nDone"
 
-} # SetupSshRemotingOnContainer()
+} # SetupSshRemotingServer()
 
 
 Function CleanupRemoting{
@@ -177,12 +173,22 @@ Function CleanupRemoting{
 
 } # CleanupRemoting()
 
-if($Setup) {
-    SetupRemoting
-} elseif($Cleanup) {
-    CleanupRemoting
-} elseif($SetupContainerHost) {
-    SetupSshRemotingOnHost
-} elseif($SetupContainer) {
-    SetupSshRemotingOnContainer -AuthorizedKey $AuthorizedKey
+function main {
+    try {
+        if($Setup) {
+            SetupRemoting
+        } elseif($Cleanup) {
+            CleanupRemoting
+        } elseif($SetupSshRemotingClient) {
+            SetupSshRemotingClient -PrivateKeyPath $PrivateKeyPath
+        } elseif($SetupSshRemotingServer) {
+            SetupSshRemotingServer -AuthorizedKey $AuthorizedKey
+        }
+    } #end try
+    catch {
+        Write-Host "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
+    }
 }
+
+#Entry point
+main @PSBoundParameters
