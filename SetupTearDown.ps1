@@ -29,12 +29,25 @@
 #>
 
 Param(
-    [Parameter(Mandatory=$True, ParameterSetName="Setup")]                  [switch] $Setup,
-    [Parameter(Mandatory=$True, ParameterSetName="Cleanup")]                [switch] $Cleanup,
-    [Parameter(Mandatory=$True, ParameterSetName="SetupSshRemotingClient")] [switch] $SetupSshRemotingClient,
-    [Parameter(Mandatory=$True, ParameterSetName="SetupSshRemotingClient")] [string] $PrivateKeyPath,
-    [Parameter(Mandatory=$True, ParameterSetName="SetupSshRemotingServer")] [switch] $SetupSshRemotingServer,
-    [Parameter(Mandatory=$True, ParameterSetName="SetupSshRemotingServer")] [string] $AuthorizedKey
+    [Parameter(Mandatory=$True, ParameterSetName="Setup")]
+    [switch] $Setup,
+
+    [Parameter(Mandatory=$True, ParameterSetName="Cleanup")]
+    [switch] $Cleanup,
+
+    [Parameter(Mandatory=$True, ParameterSetName="SetupSshRemotingClient")]
+    [switch] $SetupSshRemotingClient,
+
+    [ValidateScript({Test-Path $_ -PathType Leaf})]
+    [Parameter(Mandatory=$True, ParameterSetName="SetupSshRemotingClient")]
+    [string] $PrivateKeyPath,
+    
+    [Parameter(Mandatory=$True, ParameterSetName="SetupSshRemotingServer")]
+    [switch] $SetupSshRemotingServer,
+    
+    [ValidateScript({-Not [String]::IsNullOrWhiteSpace($_)})]
+    [Parameter(Mandatory=$True, ParameterSetName="SetupSshRemotingServer")]
+    [string] $AuthorizedKey
 )
 
 
