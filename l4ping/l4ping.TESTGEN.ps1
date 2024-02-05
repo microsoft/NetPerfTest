@@ -2,10 +2,10 @@
 # Script Input Parameters Enforcement
 #===============================================
 Param(
-    [parameter(Mandatory=$false)] [string] $Config = "Default",
-    [parameter(Mandatory=$true)]  [string] $DestIp,
-    [parameter(Mandatory=$true)]  [string] $SrcIp,
-    [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
+    [parameter(Mandatory=$false)] [ValidateSet("Default", "Azure", "Detail", "Max")]   [string] $Config = "Default",
+    [parameter(Mandatory=$true)]  [ValidateScript({$_ -match [IPAddress]$_ })]         [string] $DestIp,
+    [parameter(Mandatory=$true)]  [ValidateScript({$_ -match [IPAddress]$_ })]         [string] $SrcIp,
+    [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir
 )
 $scriptName = $MyInvocation.MyCommand.Name 
 
@@ -28,7 +28,7 @@ function input_display {
 function banner {
     [CmdletBinding()]
     Param(
-        [parameter(Mandatory=$true)] [String] $Msg
+        [parameter(Mandatory=$true)] [ValidateScript({-Not [String]::IsNullOrWhiteSpace($_)})] [String] $Msg
     )
     Write-Output "`n==========================================================================="
     Write-Output "| $Msg"
