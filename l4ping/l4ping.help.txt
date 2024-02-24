@@ -1,0 +1,36 @@
+Parameters pulled from source here:
+https://microsoft.visualstudio.com/OS/_git/os.2020?path=/onecore/vm/dv/net/tools/l4ping/PingApp.cpp&_a=contents&version=GBofficial/main
+
+l4ping [options]
+-S <send size>          bytes to send (Default: 4, Min: 1, Max: 65535)
+-R <receive size>       bytes to receive (Default: 4, Min: 1, Max: 65535)
+-s <address:port>       (Server param) server bind to address:port
+-c <address:port>       (Client param) client connect to server address:port
+-m <measures>           (Client param) count of measures to take (Default: 1,000,000)
+-p <percentiles>        (Client param) comma separated list of percentiles (Default: "0.0, 0.50, 0.90, 0.99, 0.999, 0.9999, 0.99999, 1.0")
+-o <csv file>           (Client param) output results in csv format to file
+-h						print usage information and exit
+
+The values for -S and -R must be symmetrical
+If the client is sending X bytes (e.g. "l4ping -c <address:port> -S X"), then the server must also be configured to receive the same number of bytes (e.g. "l4ping -s <address:port> -R X")
+Similarly, if the client is receiving Y bytes (e.g. "l4ping -c <address:port> -R Y"), then the server must also be configured to send the same number of bytes (e.g. "l4ping -s <address:port> -S Y")
+
+Example:
+Server: l4ping -s 127.0.0.1:5000 -R 10 -S 20
+Client: l4ping -c 127.0.0.1:5000 -S 10 -R 20 -m 1000 -p 0,50,100 -o "C:\Results\l4pingResults.csv"
+
+NOTE: The usage information below, which the app outputs, is partially incorrect. See above for the correct parameter list.
+PS Z:\OneDrive - Microsoft\_Projects\Performance\Tools> .\l4ping.exe
+l4ping [options]
+-S <send size>          bytes to send
+-R <receive size>       bytes to receive
+-c <address:port>       client connect to server address:port
+-b <bytes>              byte count for single ping, default: 4
+-m <measures>           count of measures to take, default: 1000000
+-p <percentiles>        comma separated list of percentiles
+-s <address:port>       server bind to address:port
+-o <csv file>           output results in csv format to file
+
+warning: value provided for -s -R needs to be mirrored with -c -S
+warning: value provided for -s -S needs to be mirrored with -c -R
+example: l4ping -c '127.0.0.1:5000' -b 4 -m 1000 -p 0,50,100
