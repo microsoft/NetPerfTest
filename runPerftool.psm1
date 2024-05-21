@@ -44,6 +44,18 @@ Param ([string] $Line)
             return $runtime
         }
         catch {}
+    } elseif ($Line -match "secnetperf") {
+        try {
+            $runtime = 0
+            if ($Line.Contains("-run")) {
+                [Int] $runtime = [Int]($Line.Substring($Line.IndexOf("-run")).Split(" ")[0].Split(":")[1]) / 1000
+            } else {
+                [Int] $runtime = [Int]($Line.Substring($Line.IndexOf("-up")).Split(" ")[0].Split(":")[1]) / 1000
+                $runtime += [Int]($Line.Substring($Line.IndexOf("-down")).Split(" ")[0].Split(":")[1]) / 1000
+            }
+            return $runtime
+        }
+        catch {}
     }
 }
 
@@ -326,6 +338,11 @@ Function ProcessCommands{
         ProcessToolCommands -Toolname "ncps" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
     }
 
+    if (Test-Path -Path "$commandsDir\secnetperf") {
+        LogWrite "Processing secnetperf commands" $true
+        ProcessToolCommands -Toolname "secnetperf" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
+    }
+
     LogWrite "ProcessCommands Done!" $true
     Move-Item -Path $Logfile -Destination "$workingDir" -Force -ErrorAction Ignore
 } # ProcessCommands()
@@ -541,7 +558,7 @@ Function RunTestCommands{
         }
     }
 
-    $ToolList = @('ctstraffic', 'cps', 'ntttcp', 'latte', 'l4ping')
+    $ToolList = @('ctstraffic', 'cps', 'ntttcp', 'latte', 'l4ping', 'secnetperf', 'ncps')
     [String] $workingDir = $CommandsDir.TrimEnd("\")
     
     $recvPSsession = $null
@@ -794,6 +811,12 @@ param(
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ctsTraffic\udp")  
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ctsTraffic\tcp")  
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ctsTraffic\udp")  
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\handshakes\tcp")  
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\handshakes\quic") 
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\throughput\tcp")  
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\throughput\quic") 
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\tcp")  
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\quic") 
 
         #copy the tool exe to the remote machines
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
@@ -894,8 +917,8 @@ param(
                     break
                 }
 
-                if(($Toolname -eq "ctsTraffic") -and ($checkSendProcessExit -eq $null) ) {
-                    # There's no time-based shutoff with ctstraffic servers, so recv machine will remain running until
+                if((($Toolname -eq "ctsTraffic") -or ($Toolname -eq "secnetperf")) -and ($checkSendProcessExit -eq $null) ) {
+                    # There's no time-based shutoff with ctstraffic + secnetperf servers, so recv machine will remain running until
                     # we send it a task kill command
                     LogWrite "$Toolname exited on Src machine, proceeding to shut down on Dst machine"
                     $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe
@@ -1117,6 +1140,12 @@ param(
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\ctsTraffic\udp")  
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ctsTraffic\tcp")  
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\ctsTraffic\udp")  
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\handshakes\tcp")  
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\handshakes\quic") 
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\throughput\tcp")  
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\throughput\quic") 
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\tcp")  
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\quic") 
 
         #copy the tool exe to the remote machines
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
@@ -1216,8 +1245,8 @@ param(
                     break
                 }
 
-                if(($Toolname -eq "ctsTraffic" -or $Toolname -eq 'l4ping') -and ($checkSendProcessExit -eq $null) ) {
-                    # There's no time-based shutoff with ctstraffic or l4ping servers, so recv machine will remain running until
+                if(($Toolname -eq "ctsTraffic" -or ($Toolname -eq 'l4ping') -or ($Toolname -eq "secnetperf")) -and ($checkSendProcessExit -eq $null) ) {
+                    # There's no time-based shutoff with ctstraffic or l4ping or secnetperf servers, so recv machine will remain running until
                     # we send it a task kill command
                     LogWrite "$Toolname exited on Src machine, proceeding to shut down on Dst machine" -echoToConsole $false
                     $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockTaskKill -ArgumentList $toolexe

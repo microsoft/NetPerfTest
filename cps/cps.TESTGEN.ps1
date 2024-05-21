@@ -2,7 +2,8 @@ Param(
     [Parameter(Mandatory=$false)] [String] $Config = "Default",
     [Parameter(Mandatory=$true)]  [String] $DestIp,
     [Parameter(Mandatory=$true)]  [String] $SrcIp,
-    [Parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
+    [Parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
+    [parameter(Mandatory=$false)] [switch] $SamePort = $false
 )
 
 $scriptName = $MyInvocation.MyCommand.Name
@@ -156,7 +157,8 @@ function test_main {
         [Parameter(Mandatory=$false)] [String] $Config = "Default",
         [Parameter(Mandatory=$true)]  [String] $DestIp,
         [Parameter(Mandatory=$true)]  [String] $SrcIp,
-        [Parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
+        [Parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false
     )
 
     try {
@@ -181,6 +183,7 @@ function test_main {
         [String] $g_log     = "$dir\CPS.Commands.txt"
         [String] $g_logSend = "$dir\CPS.Commands.Send.txt"
         [String] $g_logRecv = "$dir\CPS.Commands.Recv.txt"
+        [boolean] $g_SamePort = $SamePort.IsPresent
 
         $null = New-Item -ItemType directory -Path $dir
         

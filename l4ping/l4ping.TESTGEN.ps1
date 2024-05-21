@@ -2,10 +2,11 @@
 # Script Input Parameters Enforcement
 #===============================================
 Param(
-    [parameter(Mandatory=$false)] [ValidateSet("Default", "Azure", "Detail", "Max")]   [string] $Config = "Default",
+    [parameter(Mandatory=$false)] [ValidateSet("Default", "Azure", "Detail", "Max", "Container")]   [string] $Config = "Default",
     [parameter(Mandatory=$true)]  [ValidateScript({$_ -match [IPAddress]$_ })]         [string] $DestIp,
     [parameter(Mandatory=$true)]  [ValidateScript({$_ -match [IPAddress]$_ })]         [string] $SrcIp,
-    [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir
+    [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir,
+    [parameter(Mandatory=$false)] [switch] $SamePort = $false
 )
 $scriptName = $MyInvocation.MyCommand.Name 
 
@@ -78,7 +79,10 @@ function test_l4ping_generate {
 
     for ($i=0; $i -lt $g_Config.Iterations; $i++) {
         # vary port number
-        [int] $port = $g_Config.StartPort + ($i * $g_Config.Iterations)
+        [int] $port = $g_Config.StartPort
+        if (-Not $g_SamePort) {
+            $port += ($i * $g_Config.Iterations)
+        }
 
         # Output receive command
         test_recv -Port $port -ClientReceiveSize $g_Config.ClientReceiveSize -ClientSendSize $g_Config.ClientSendSize
@@ -147,7 +151,8 @@ function test_main {
         [parameter(Mandatory=$false)] [string] $Config = "Default",
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
-        [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
+        [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false
     )
     try {
         # input_display
@@ -168,6 +173,7 @@ function test_main {
         [string] $g_log        = "$dir\l4ping.Commands.txt"
         [string] $g_logSend    = "$dir\l4ping.Commands.Send.txt"
         [string] $g_logRecv    = "$dir\l4ping.Commands.Recv.txt"
+        [boolean] $g_SamePort  = $SamePort.IsPresent
 
         New-Item -ItemType directory -Path $dir | Out-Null
         
