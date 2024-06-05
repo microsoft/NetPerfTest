@@ -5,7 +5,8 @@ Param(
     [parameter(Mandatory=$false)] [string] $Config = "Default",
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
-    [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
+    [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
+    [parameter(Mandatory=$false)] [switch] $SamePort = $false
 )
 $scriptName = $MyInvocation.MyCommand.Name 
 
@@ -87,7 +88,10 @@ function test_protocol {
     foreach ($snd in $g_Config.SendMethod) {
         for ($i=0; $i -lt $g_Config.Iterations; $i++) {
             # vary port number
-            [int] $portstart = $g_Config.StartPort + ($i * $g_Config.Iterations)
+            [int] $portstart = $g_Config.StartPort
+            if (-Not $g_SamePort) {
+                $portstart += ($i * $g_Config.Iterations)
+            }
             # output optimized commands
             if ($null -ne  $g_Config.Optimized) {
                 test_send -Iter $Iter -Port $portstart -Type "-$Protocol" -Snd $snd -Options $g_Config.Optimized -OutDir $OutDirOpt -Fname "$Fname.$snd.OPT.iter$i" -NoDumpParam $NoDumpParam
@@ -180,7 +184,8 @@ function test_main {
         [parameter(Mandatory=$false)] [string] $Config = "Default",
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
-        [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
+        [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false
     )
     try {
         # input_display
@@ -201,6 +206,7 @@ function test_main {
         [string] $g_log        = "$dir\LATTE.Commands.txt"
         [string] $g_logSend    = "$dir\LATTE.Commands.Send.txt"
         [string] $g_logRecv    = "$dir\LATTE.Commands.Recv.txt"
+        [boolean] $g_SamePort  = $SamePort.IsPresent
 
         New-Item -ItemType directory -Path $dir | Out-Null
         

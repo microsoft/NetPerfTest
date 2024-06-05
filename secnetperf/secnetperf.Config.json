@@ -1,0 +1,94 @@
+{
+    "SecnetperfDefault": {
+        "Iterations": 1,
+        "StartPort": 50000,
+        "TestType" : {
+            "Latency": {
+                "tcp": {
+                    "Runtime" : 10,
+                    "ByteSize": 4,
+                    "Requests": 10000,
+                    "Options" : ""
+                },
+                "quic": {
+                    "Runtime" : 10,
+                    "ByteSize": 4,
+                    "Requests": 10000,
+                    "Options" : ""
+                }
+            },
+            "Handshakes": {
+                "tcp": {
+                    "Runtime" : 10,
+                    "Connections": [1, 64],
+                    "Options" : ""
+                },
+                "quic": {
+                    "Runtime" : 10,
+                    "Connections": [1, 64],
+                    "Options" : ""
+                }
+            },
+            "Throughput": {
+                "tcp": {
+                    "Runtime" : 10,
+                    "BufferLen" : [65536],
+                    "Connections": [1, 64],
+                    "Options" : ""
+                },
+                "quic": {
+                    "Runtime" : 10,
+                    "BufferLen": [1372],
+                    "Connections": [1, 64],
+                    "Options" : ""
+                }
+            }
+        }
+    },
+    "SecnetperfContainer": {
+        "Iterations": 5,
+        "StartPort": 50000,
+        "TestType" : {
+            "Latency": {
+                "tcp": {
+                    "Runtime" : 60,
+                    "ByteSize": 4,
+                    "Requests": 10000,
+                    "Options" : ""
+                },
+                "quic": {
+                    "Runtime" : 60,
+                    "ByteSize": 4,
+                    "Requests": 10000,
+                    "Options" : ""
+                }
+            },
+            "Handshakes": {
+                "tcp": {
+                    "Runtime" : 60,
+                    "Connections": [1, 64],
+                    "Options" : ""
+                },
+                "quic": {
+                    "Runtime" : 60,
+                    "Connections": [1, 64],
+                    "Options" : ""
+                }
+            },
+            "Throughput": {
+                "tcp": {
+                    "Runtime" : 60,
+                    "BufferLen" : [65536],
+                    "Connections": [1, 64],
+                    "Options" : ""
+                },
+                "quic": {
+                    "Runtime" : 60,
+                    "BufferLen": [1372],
+                    "Connections": [1, 64],
+                    "Options" : ""
+                }
+            }
+        }
+    }
+}

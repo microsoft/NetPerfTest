@@ -1,0 +1,56 @@
+secnetperf usage:
+
+Server: secnetperf [options]
+
+  -bind:<addr>             A local IP address to bind to.
+  -port:<####>             The UDP port of the server. Ignored if "bind" is passed. (def:4433)
+  -serverid:<####>         The ID of the server (used for load balancing).
+  -cibir:<hex_bytes>       A CIBIR well-known idenfitier.
+
+Client: secnetperf -target:<hostname/ip> [options]
+
+  Remote options:
+  -ip:<0/4/6>              A hint for the resolving the hostname to an IP address. (def:0)
+  -port:<####>             The UDP port of the server. (def:4433)
+  -cibir:<hex_bytes>       A CIBIR well-known idenfitier.
+  -inctarget:<0/1>         Append unique ID to target hostname for each worker (def:1).
+
+  Local options:
+  -threads:<####>          The max number of worker threads to use.
+  -affinitize:<0/1>        Affinitizes worker threads to a core. (def:0)
+  -comp:<####>             The network compartment ID to run in.
+  -bind:<addr>             The local IP address(es)/port(s) to bind to.
+  -share:<0/1>             Shares the same local bindings. (def:0)
+
+  Config options:
+  -tcp:<0/1>               Disables/enables TCP usage (instead of QUIC). (def:0)
+  -encrypt:<0/1>           Disables/enables encryption. (def:1)
+  -pacing:<0/1>            Disables/enables send pacing. (def:1)
+  -sendbuf:<0/1>           Disables/enables send buffering. (def:0)
+  -ptput:<0/1>             Print throughput information. (def:0)
+  -pconn:<0/1>             Print connection statistics. (def:0)
+  -pstream:<0/1>           Print stream statistics. (def:0)
+  -platency<0/1>           Print latency statistics. (def:0)
+
+  Scenario options:
+  -conns:<####>            The number of connections to use. (def:1)
+  -streams:<####>          The number of streams to send on at a time. (def:0)
+  -upload:<####>[unit]     The length of bytes to send on each stream, with an optional (time or length) unit. (def:0)
+  -download:<####>[unit]   The length of bytes to receive on each stream, with an optional (time or length) unit. (def:0)
+  -iosize:<####>           The size of each send request queued.
+  -rconn:<0/1>             Repeat the scenario at the connection level. (def:0)
+  -rstream:<0/1>           Repeat the scenario at the stream level. (def:0)
+  -runtime:<####>[unit]    The total runtime, with an optional unit (def unit is us). Only relevant for repeat scenarios. (def:0)
+
+Both (client & server) options:
+  -exec:<profile>          Execution profile to use.
+                            - {lowlat, maxtput, scavenger, realtime}.
+  -cc:<algo>               Congestion control algorithm to use.
+                            - {cubic, bbr}.
+  -pollidle:<time_us>      Amount of time to poll while idle before sleeping (default: 0).
+  -ecn:<0/1>               Enables/disables sender-side ECN support. (def:0)
+  -qeo:<0/1>               Allows/disallowes QUIC encryption offload. (def:0)
+  -io:<mode>               Configures a requested network IO model to be used.
+                            - {iocp, rio, xdp, qtip, wsk, epoll, kqueue}
+  -cpu:<cpu_index>         Specify the processor(s) to use.
+  -cipher:<value>          Decimal value of 1 or more QUIC_ALLOWED_CIPHER_SUITE_FLAGS.

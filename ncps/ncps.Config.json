@@ -1,0 +1,53 @@
+{
+    "NcpsDefault": {
+        "Iterations": 1,
+        "Port": 50000,
+        "Threads": [1, 8, 64],
+        "ConnectionsPerThread": [1, 2],
+        "ConnectionDurationMS": [1, 1000],
+        "MaxPendingRequests" : [1],
+        "DataTransferMode": [1, 2],
+        "Options": "",
+        "Warmup": 2,
+        "Runtime": 10
+    },
+
+    "NcpsAzure": {
+        "Iterations": 1,
+        "Port": 50000,
+        "Threads": [1, 8, 64],
+        "ConnectionsPerThread": [1, 2],
+        "ConnectionDurationMS": [1, 1000],
+        "MaxPendingRequests" : [1],
+        "DataTransferMode": [1, 2],
+        "Options": "",
+        "Warmup": 2,
+        "Runtime": 10
+    },
+
+    "NcpsDetail": {
+        "Iterations": 1,
+        "Port": 50000,
+        "Threads": [1, 8, 64],
+        "ConnectionsPerThread": [1, 2],
+        "ConnectionDurationMS": [1, 1000],
+        "MaxPendingRequests" : [1],
+        "DataTransferMode": [1, 2],
+        "Options": "",
+        "Warmup": 2,
+        "Runtime": 10
+    },
+
+    "NcpsMax": {
+        "Iterations": 1,
+        "Port": 50000,
+        "Threads": [1, 8, 64],
+        "ConnectionsPerThread": [1, 2],
+        "ConnectionDurationMS": [1, 1000],
+        "MaxPendingRequests" : [1],
+        "DataTransferMode": [1, 2],
+        "Options": "",
+        "Warmup": 2,
+        "Runtime": 10
+    }
+}

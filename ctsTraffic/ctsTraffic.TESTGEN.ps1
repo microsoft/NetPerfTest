@@ -5,7 +5,8 @@ Param(
     [parameter(Mandatory=$false)] [string] $Config = "Default",
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
-    [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
+    [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
+    [parameter(Mandatory=$false)] [switch] $SamePort = $false
 )
 $scriptName = $MyInvocation.MyCommand.Name 
 
@@ -76,7 +77,10 @@ function test_iterations {
     $protoParam = if ($Proto -eq "udp") {"-protocol:udp"} else {""};
     for ($i=0; $i -lt $g_Config.Iterations; $i++) {
         # vary on port number
-        [int] $portstart = $g_Config.StartPort + ($i * $g_Config.Iterations)
+        [int] $portstart = $g_Config.StartPort
+        if (-Not $g_SamePort) {
+            $portstart += ($i * $g_Config.Iterations)
+        }
         test_recv -Conn $Conn -Port $portstart -Proto $protoParam -OutDir $OutDir -Fname "$Proto.recv.$Fname.iter$i" -Options $Options 
         test_send -Conn $Conn -Port $portstart -Proto $protoParam -OutDir $OutDir -Fname "$Proto.send.$Fname.iter$i" -Options $Options
     }
@@ -163,7 +167,8 @@ function test_main {
         [parameter(Mandatory=$false)] [string] $Config = "Default",
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
-        [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" 
+        [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false
     )
     try {
         # input_display
@@ -185,6 +190,7 @@ function test_main {
         [string] $g_log        = "$dir\CtsTraffic.Commands.txt"
         [string] $g_logSend    = "$dir\CtsTraffic.Commands.Send.txt"
         [string] $g_logRecv    = "$dir\CtsTraffic.Commands.Recv.txt"
+        [boolean] $g_SamePort = $SamePort.IsPresent
 
         # Edit spaces in path for Invoke-Expression compatibility
         $dir = $dir -replace ' ','` '
