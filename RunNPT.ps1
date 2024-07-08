@@ -88,7 +88,7 @@ Param(
     [string] $Config = "Default",
 
     [parameter(Mandatory=$false)]  
-    [Array] $ToolList = @("ntttcp", "latte", "cps", "ctstraffic"),
+    [Array] $ToolList = @("ntttcp", "latte", "cps", "ctstraffic", "ncps", "secnetperf", "l4ping"),
 
     [Parameter(Mandatory=$false, ParameterSetName="Transmit")] 
     [Switch] $TransmitEventsLocally,

@@ -5,14 +5,14 @@ Param(
     [parameter(Mandatory=$true)]  [string] $SrcIp, 
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-    
     [ValidateSet("Default", "Azure", "Detail", "Max")]
     [parameter(Mandatory=$false)] [string] $Config = "Default",
-    [parameter(Mandatory=$false)]  [Array] $ToolList = @("ntttcp", "latte", "l4ping", "cps", "ctstraffic")
+    [parameter(Mandatory=$false)]  [Array] $ToolList = @("ntttcp", "latte", "l4ping", "cps", "ctstraffic", "ncps", "secnetperf"),
+    [parameter(Mandatory=$false)] [switch] $SamePort = $false
 )
 
 $scriptName = $MyInvocation.MyCommand.Name 
-$SupportedTools = @("ntttcp", "latte", "l4ping", "cps", "ctstraffic")
+$SupportedTools = @("ntttcp", "latte", "l4ping", "cps", "ctstraffic", "ncps", "secnetperf")
 $start   = Get-Date
 $version = "2020.09.13.0" # Version within date context
 
@@ -110,7 +110,8 @@ function test_main {
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" ,
-        [parameter(Mandatory=$false)] [Array] $ToolList
+        [parameter(Mandatory=$false)] [Array] $ToolList,
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false
     )
     
     if (-not $silent) {input_display}
@@ -127,21 +128,27 @@ function test_main {
     $ToolList = normalize_toollist -ToolList $ToolList
     
     if ("ctstraffic" -in $ToolList) {
-        & "$PSScriptRoot\ctsTraffic\ctsTraffic.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
+        & "$PSScriptRoot\ctsTraffic\ctsTraffic.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
     }
     if ("cps" -in $ToolList) {
-        & "$PSScriptRoot\cps\cps.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
+        & "$PSScriptRoot\cps\cps.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
     }
     if ("latte" -in $ToolList) {
-        & "$PSScriptRoot\latte\latte.TESTGEN.ps1"   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
+        & "$PSScriptRoot\latte\latte.TESTGEN.ps1"   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
     }
     if ("l4ping" -in $ToolList) {
-        & "$PSScriptRoot\l4ping\l4ping.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
+        & "$PSScriptRoot\l4ping\l4ping.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
     }
     if ("ntttcp" -in $ToolList) {
-        & "$PSScriptRoot\ntttcp\ntttcp.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config
+        & "$PSScriptRoot\ntttcp\ntttcp.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
     } 
-        
+    if ("ncps" -in $ToolList) {
+        & "$PSScriptRoot\ncps\ncps.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
+    }   
+    if ("secnetperf" -in $ToolList) {
+        & "$PSScriptRoot\secnetperf\secnetperf.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
+    }   
+    
     
 } test_main -Config $Config -DestIp $DestIp -SrcIp $SrcIp -OutDir $OutDir -ToolList $ToolList
 

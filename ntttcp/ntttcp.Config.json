@@ -6,13 +6,13 @@
             "BufferLen"     : [65536],
             "Connections"   : [1, 64],
             "OutstandingIo" :[2, 16],
-            "Options"       : ""
+            "Options"       : "-sp"
         },
         "udp" : {
             "BufferLen"     : [1472],
             "Connections"   : [1, 64],
             "OutstandingIo" : null,
-            "Options"       : ""
+            "Options"       : "-sp"
         },
         "Warmup"   : 2,
         "Cooldown" : 2,
@@ -26,13 +26,13 @@
             "BufferLen"     : [65536],
             "Connections"   : [64],
             "OutstandingIo" :[16],
-            "Options": ""
+            "Options": "-sp"
         },
         "udp" : {
             "BufferLen"     : [1372],
             "Connections"   : [64],
             "OutstandingIo" : null,
-            "Options"       : ""
+            "Options"       : "-sp"
         },
         "Warmup"   : 2,
         "Cooldown" : 2,
@@ -46,13 +46,13 @@
             "BufferLen"     : [4096, 65536, 262144],
             "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
             "OutstandingIo" :[2, 4, 8, 16, 32, 63],
-            "Options"       : ""
+            "Options"       : "-sp"
         },
         "udp" : {
             "BufferLen"     : [512, 1000, 1372, 1400, 1472],
             "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
             "OutstandingIo" : null,
-            "Options"       : ""
+            "Options"       : "-sp"
         },
         "Warmup"   : 2,
         "Cooldown" : 2,
@@ -66,16 +66,36 @@
             "BufferLen"     : [65536],
             "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
             "OutstandingIo" :[16],
-            "Options"       : ""
+            "Options"       : "-sp"
         },
         "udp" : {
             "BufferLen"     : [1372],
             "Connections"   : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
             "OutstandingIo" : null,
-            "Options"       : ""
+            "Options"       : "-sp"
         },
         "Warmup"   : 5,
         "Cooldown" : 5,
         "Runtime"  : 15
+    },
+
+    "NtttcpContainer": {
+        "Iterations" : 5,
+        "StartPort"  : 50000,
+        "tcp" : {
+            "BufferLen"     : [65536],
+            "Connections"   : [64],
+            "OutstandingIo" :[16],
+            "Options": "-ns"
+        },
+        "udp" : {
+            "BufferLen"     : [1372],
+            "Connections"   : [64],
+            "OutstandingIo" : null,
+            "Options"       : "-ns"
+        },
+        "Warmup"   : 2,
+        "Cooldown" : 2,
+        "Runtime"  : 90
     }
 }

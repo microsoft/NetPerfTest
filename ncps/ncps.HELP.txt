@@ -1,0 +1,65 @@
+VERSION 1.1
+
+ncps -s : run as server with the following options:
+    -r <thread count> : (default: 16)
+    -b <IP address to bind to> : (default: 0.0.0.0)
+    -np <number of TCP ports to listen on> : (default: thread count)
+    -bp <base TCP port number to listen on> : (default: 10001)
+        E.g.: For -bp 20000 -np 100 -r 3, the 3 threads listen on the following port numbers:
+              Thread-1: 20000, 20003, 20006,..., 20096, 20099
+              Thread-2: 20001, 20004, 20007,..., 20097
+              Thread-3: 20002, 20005, 20008,..., 20098
+    -M <data transfer mode> : (default: client-driven)
+            s: continuous send, r: continuous receive
+
+ncps -c <IP address to connect to> : run as client with the following options:
+    -r <thread count> : (default: 16)
+    -b <IP address to bind to> : (default: 0.0.0.0)
+    -bp <base remote TCP port number to connect to> : (default: 10001)
+    -np <number of remote TCP ports to connect to> : (default: thread count)
+        Tip: The port range specified by a client's -bp/-np parameters must be a subset of the range
+             specified by the server's -bp/-np parameters.
+    -bcp <base local TCP port number to bind to> : (default: 0 -- local ephemeral ports picked by TCPIP)
+    -ncp <number of local TCP ports to bind to> : (ignored if -bcp == 0, must be specified otherwise)
+       If client specifies an explicit local port range via -bcp and -ncp parameters, this local port range
+       is divided across client threads and each thread explicitly binds (with SO_REUSEADDR) to the local ports
+       in its range for initiating connections. E.g.: For -bcp 30000 -ncp 40 -r 3, 3 threads behave as:
+              Thread-1 uses local port numbers in the 30000-30013 range (14 local ports)
+              Thread-2 uses local port numbers in the 30014-30026 range (13 local ports)
+              Thread-3 uses local port numbers in the 30027-30039 range (13 local ports)
+    -xconnect : This option changes how client threads choose the remote ports to connect to.
+       By default, each client thread initiates connections to only one remote port. E.g., with -bp A,
+       thread1 connects to remote port A, thread2 to A+1 (modulo -np), thread3 to A+2 (module -np), and so on.
+       With -xconnect, each client thread connects to all the ports specified by -bp/-np.
+       When used with -bcp/-ncp parameters, each client thread uses each local port in its range to connect
+       to each remote port. E.g., thread1 connects from 30000 to 20000, then 30000 to 20001,..., then 30000 to 20099,
+       and repeats this for all the  other local ports in its own range. This is performed by all client threads for
+       their own local port ranges. This means first '-ncp times -np' TCP connections will all have unique 4-tuples.
+    -N <total number of connections to keep open> : (default: thread count * 100)
+    -P <max number of pending connect requests at any given time> : (default: N)
+    -D <duration in milliseconds for each connection> : (default: 0)
+    -M <data transfer mode> : (default: 1)
+       0: no send/receive, 1: one send/receive, p: ping/pong (continuous send/receive)
+       s: continuous send, r: continuous receive
+
+Other options:
+  -aff <comma-separated processor indices for thread affinity> : th1 to val1, th2 to val2,... (default: no affinity)
+       On Linux, you can specify 'nonrss' to automatically detect non-RSS processors and affinitize to them.
+  -rup : use the SO_REUSEPORT option on listener sockets. All threads listen on all the sockets.
+  -tka <idle_sec>: enable TCP keep-alive on all connections with an idle period idle_sec seconds.
+  -dnrc : client-only - Once a connection is successfully established, do not reconnect after it's closed.
+  -t <duration_sec> : stop and report final stats after this many seconds. (default: run forever)
+  -i <display_interval_sec> : display various current stats with this period. (default: 1)
+  -k <mode_p_interval_sec> : client only - seconds to wait between send/receive attempts in mode p. (default: 0)
+                             This also rate-limits the connects HENCE SHOULD NOT be used for max CPS measurements.
+  -abortiveclose : Terminate the TCP connection by issuing an abortive close-socket (default on server side)
+  -normalclose   : Terminate the TCP connection by issuing a normal close-socket (default on client side)
+  -disconbc      : Issue an explicit graceful disconnect before close-socket.
+  -nodisconbc    : Do not issue an explicit graceful disconnect before close-socket (default on both sides)
+  -ds <delay_start_sec> : start connection activity after this many seconds from program launch. (default: 0)
+  -wt <warm_up_seconds> : skip this many seconds when reporting the final stats at the end. (default: 0)
+  -sil : silent-mode; do not print stats periodically during the run
+  -o <output_file_name> : direct all output to the specified file. (default: stdout)
+  -len <send_or_receive_size> : issue sends and receives with this size. (default: 1000)
+  -poll : poll for send and receive completions
+  -brief : display only CPS and SYN-RTT in the periodic output

@@ -51,7 +51,7 @@ function test_client {
     [String] $out = Join-Path $OutDir "send.$Filename"
 
     $thread_params = "-r $Threads $g_SrcIp,$($g_Config.Port),$g_DestIp,$($g_Config.Port),$ConnectionsPerThread,$ConnectionsPerThread,$ConnectionDurationMS,$DataTransferMode"
-    [String] $cmd = "cps.exe -c $thread_params -wt $($g_Config.Warmup) -t $($g_Config.Runtime) -o $out.txt $($g_Config.Options)"
+    [String] $cmd = "ncps.exe -c $thread_params -wt $($g_Config.Warmup) -t $($g_Config.Runtime) -o $out.txt $($g_Config.Options)"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
@@ -69,7 +69,7 @@ function test_server {
     [String] $out = Join-Path $OutDir "recv.$Filename"
 
     $thread_params = "-r $Threads $g_DestIp,$($g_Config.Port)"
-    [String] $cmd = "cps.exe -s $thread_params -wt $($g_Config.Warmup) -t $($g_Config.Runtime) -o $out.txt $($g_Config.Options)"
+    [String] $cmd = "ncps.exe -s $thread_params -wt $($g_Config.Warmup) -t $($g_Config.Runtime) -o $out.txt $($g_Config.Options)"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv  
@@ -97,7 +97,7 @@ function test_iterations {
     }
 } # test_iterations()
 
-function test_cps {
+function test_ncps {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory=$true)] [String] $OutDir
@@ -122,7 +122,7 @@ function test_cps {
         }
     }
 
-} # test_cps()
+} # test_ncps()
 
 function validate_config {
     $isValid = $true
@@ -158,41 +158,41 @@ function test_main {
         [Parameter(Mandatory=$true)]  [String] $DestIp,
         [Parameter(Mandatory=$true)]  [String] $SrcIp,
         [Parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-        [parameter(Mandatory=$false)] [switch] $SamePort = $false
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false 
     )
 
     try {
         # input_display
 
         # get config variables
-        $allConfig = Get-Content -Path "$PSScriptRoot\cps.Config.json" | ConvertFrom-Json
-        [Object] $g_Config = $allConfig."Cps$Config"
+        $allConfig = Get-Content -Path "$PSScriptRoot\ncps.Config.json" | ConvertFrom-Json
+        [Object] $g_Config = $allConfig."Ncps$Config"
         if ($null -eq $g_Config) {
-            Write-Output "Cps$Config does not exist in .\cps\cps.Config.json. Please provide a valid config"
+            Write-Output "Ncps$Config does not exist in .\cps\cps.Config.json. Please provide a valid config"
             throw
         }
 
         if (-not (validate_config)) {
-            Write-Output "Cps$Config is not a valid config"
+            Write-Output "Ncps$Config is not a valid config"
             throw
         }
 
         [String] $g_DestIp  = $DestIp.Trim()
         [String] $g_SrcIp   = $SrcIp.Trim()
-        [String] $dir       = (Join-Path -Path $OutDir -ChildPath "cps") 
-        [String] $g_log     = "$dir\CPS.Commands.txt"
-        [String] $g_logSend = "$dir\CPS.Commands.Send.txt"
-        [String] $g_logRecv = "$dir\CPS.Commands.Recv.txt"
-        [boolean] $g_SamePort = $SamePort.IsPresent
+        [String] $dir       = (Join-Path -Path $OutDir -ChildPath "ncps") 
+        [String] $g_log     = "$dir\NCPS.Commands.txt"
+        [String] $g_logSend = "$dir\NCPS.Commands.Send.txt"
+        [String] $g_logRecv = "$dir\NCPS.Commands.Recv.txt"
+        [boolean] $g_SamePort  = $SamePort.IsPresent
 
         $null = New-Item -ItemType directory -Path $dir
         
         # Optional - Edit spaces in output path for Invoke-Expression compatibility
         # $dir  = $dir  -replace ' ','` '
-        banner -Msg "CPS Tests"
-        test_cps -OutDir $dir
+        banner -Msg "NCPS Tests"
+        test_ncps -OutDir $dir
     } catch {
-        Write-Output "Unable to generate CPS commands"
+        Write-Output "Unable to generate NCPS commands"
         Write-Output "Exception $($_.Exception.Message) in $($MyInvocation.MyCommand.Name)"
     }
 } test_main @PSBoundParameters # Entry Point
