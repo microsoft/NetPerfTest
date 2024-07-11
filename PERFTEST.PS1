@@ -5,7 +5,7 @@ Param(
     [parameter(Mandatory=$true)]  [string] $SrcIp, 
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-    [ValidateSet("Default", "Azure", "Detail", "Max")]
+    [ValidateSet("Default", "Azure", "Detail", "Max", "Container")]
     [parameter(Mandatory=$false)] [string] $Config = "Default",
     [parameter(Mandatory=$false)]  [Array] $ToolList = @("ntttcp", "latte", "l4ping", "cps", "ctstraffic", "ncps", "secnetperf"),
     [parameter(Mandatory=$false)] [switch] $SamePort = $false
