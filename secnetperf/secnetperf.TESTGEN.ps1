@@ -105,7 +105,7 @@ function test_send_throughput {
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
 
-    [string] $cmd = "secnetperf.exe -target:$SrcIp -port:$Port -tcp:$Type -iosize:$Len :$Conns -up:$($Secs)s -down:$($Secs)s -exec:maxtput -ptput:1 $Options > $out.txt"
+    [string] $cmd = "secnetperf.exe -target:$SrcIp -port:$Port -tcp:$Type -iosize:$Len -conns:$Conns -up:$($Secs)s -down:$($Secs)s -exec:maxtput -ptput:1 $Options > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Output   $cmd 
@@ -170,7 +170,7 @@ function test_throughput {
     $protoParam = if ($Proto -eq "tcp") {"1"} else {"0"};
     $dir = (Join-Path -Path $OutDir -ChildPath $Proto) 
     New-Item -ItemType directory -Path $dir | Out-Null
-    $Config = $g_Config.TestType.Handshakes.$Proto
+    $Config = $g_Config.TestType.Throughput.$Proto
     for ($j=0; $j -lt $Config.Connections.Length; $j++) {
         $Conn = $Config.Connections[$j]
         for ($k=0; $k -lt $Config.BufferLen.Length; $k++) {

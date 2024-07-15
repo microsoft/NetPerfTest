@@ -48,10 +48,10 @@ Param ([string] $Line)
         try {
             $runtime = 0
             if ($Line.Contains("-run")) {
-                [Int] $runtime = [Int]($Line.Substring($Line.IndexOf("-run")).Split(" ")[0].Split(":")[1]) / 1000
-            } else {
-                [Int] $runtime = [Int]($Line.Substring($Line.IndexOf("-up")).Split(" ")[0].Split(":")[1]) / 1000
-                $runtime += [Int]($Line.Substring($Line.IndexOf("-down")).Split(" ")[0].Split(":")[1]) / 1000
+                [Int] $runtime = [Int]($Line.Substring($Line.IndexOf("-run")).Split(" ")[0].Split(":")[1] -replace '[^0-9]')
+            } elseif ($Line.Contains("-up") -or $Line.Contains("-down")) {
+                [Int] $runtime = [Int]($Line.Substring($Line.IndexOf("-up")).Split(" ")[0].Split(":")[1] -replace '[^0-9]')
+                $runtime += [Int]($Line.Substring($Line.IndexOf("-down")).Split(" ")[0].Split(":")[1] -replace '[^0-9]')
             }
             return $runtime
         }
@@ -817,6 +817,7 @@ param(
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\throughput\quic") 
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\tcp")  
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\quic") 
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\secnetperf")  
 
         #copy the tool exe to the remote machines
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
