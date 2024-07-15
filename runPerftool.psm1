@@ -48,10 +48,10 @@ Param ([string] $Line)
         try {
             $runtime = 0
             if ($Line.Contains("-run")) {
-                [Int] $runtime = [Int]($Line.Substring($Line.IndexOf("-run")).Split(" ")[0].Split(":")[1]) / 1000
-            } else {
-                [Int] $runtime = [Int]($Line.Substring($Line.IndexOf("-up")).Split(" ")[0].Split(":")[1]) / 1000
-                $runtime += [Int]($Line.Substring($Line.IndexOf("-down")).Split(" ")[0].Split(":")[1]) / 1000
+                [Int] $runtime = [Int]($Line.Substring($Line.IndexOf("-run")).Split(" ")[0].Split(":")[1] -replace '[^0-9]')
+            } elseif ($Line.Contains("-up") -or $Line.Contains("-down")) {
+                [Int] $runtime = [Int]($Line.Substring($Line.IndexOf("-up")).Split(" ")[0].Split(":")[1] -replace '[^0-9]')
+                $runtime += [Int]($Line.Substring($Line.IndexOf("-down")).Split(" ")[0].Split(":")[1] -replace '[^0-9]')
             }
             return $runtime
         }
