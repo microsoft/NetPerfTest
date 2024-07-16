@@ -827,6 +827,9 @@ param(
         if ($toolname -eq 'ncps') {
             Copy-Item -Path "$toolpath\vcruntime140.dll" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
             Copy-Item -Path "$toolpath\vcruntime140.dll" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
+        } elseif ($toolname -eq 'secnetperf') {
+            Copy-Item -Path "$toolpath\msquic.dll" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
+            Copy-Item -Path "$toolpath\msquic.dll" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
         }
 
         # Setup firewall rules so that traffic can go through
