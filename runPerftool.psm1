@@ -921,7 +921,7 @@ param(
                     break
                 }
 
-                if((($Toolname -eq "ctsTraffic") -or ($Toolname -eq "secnetperf")) -and ($checkSendProcessExit -eq $null) ) {
+                if((($Toolname -eq "ctsTraffic") -or ($Toolname -eq 'l4ping') -or ($Toolname -eq "secnetperf")) -and ($checkSendProcessExit -eq $null) ) {
                     # There's no time-based shutoff with ctstraffic + secnetperf servers, so recv machine will remain running until
                     # we send it a task kill command
                     LogWrite "$Toolname exited on Src machine, proceeding to shut down on Dst machine"
@@ -1150,10 +1150,20 @@ param(
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\throughput\quic") 
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\tcp")  
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\quic") 
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\secnetperf") 
 
         #copy the tool exe to the remote machines
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
+
+        # Need to dll dependency for ncps
+        if ($toolname -eq 'ncps') {
+            Copy-Item -Path "$toolpath\vcruntime140.dll" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
+            Copy-Item -Path "$toolpath\vcruntime140.dll" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
+        } elseif ($toolname -eq 'secnetperf') {
+            Copy-Item -Path "$toolpath\msquic.dll" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
+            Copy-Item -Path "$toolpath\msquic.dll" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
+        }
 
         if (-NOT $DisableFirewallConfiguration)
         {
