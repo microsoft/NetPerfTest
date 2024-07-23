@@ -64,7 +64,7 @@ function test_send_latency {
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
 
-    [string] $cmd = "secnetperf.exe -target:$SrcIp -port:$Port -tcp:$Type -up:$Requests -down:$Size -run:$($Secs)s -rstream:1 -platency:1 $Options > $out.txt"
+    [string] $cmd = "secnetperf.exe -target:$DestIp -port:$Port -tcp:$Type -up:$Requests -down:$Size -run:$($Secs)s -rstream:1 -platency:1 $Options > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Output   $cmd 
@@ -84,7 +84,7 @@ function test_send_handshakes {
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
 
-    [string] $cmd = "secnetperf.exe -target:$SrcIp -port:$Port -tcp:$Type -conns:$Conns -run:$($Secs)s -rconn:1 -exec:maxtput -prate:1 $Options > $out.txt"
+    [string] $cmd = "secnetperf.exe -target:$DestIp -port:$Port -tcp:$Type -conns:$Conns -run:$($Secs)s -rconn:1 -exec:maxtput -prate:1 $Options > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Output   $cmd 
@@ -105,7 +105,7 @@ function test_send_throughput {
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
 
-    [string] $cmd = "secnetperf.exe -target:$SrcIp -port:$Port -tcp:$Type -iosize:$Len -conns:$Conns -up:$($Secs)s -down:$($Secs)s -exec:maxtput -ptput:1 $Options > $out.txt"
+    [string] $cmd = "secnetperf.exe -target:$DestIp -port:$Port -tcp:$Type -iosize:$Len -conns:$Conns -up:$($Secs)s -down:$($Secs)s -exec:maxtput -ptput:1 $Options > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Output   $cmd 
