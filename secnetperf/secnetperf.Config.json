@@ -79,13 +79,13 @@
                 "tcp": {
                     "Runtime" : 60,
                     "BufferLen" : [65536],
-                    "Connections": [1, 64],
+                    "Connections": [64, 128],
                     "Options" : ""
                 },
                 "quic": {
                     "Runtime" : 60,
                     "BufferLen": [1372],
-                    "Connections": [1, 64],
+                    "Connections": [64, 128],
                     "Options" : ""
                 }
             }
