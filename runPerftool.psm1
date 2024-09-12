@@ -1185,7 +1185,7 @@ param(
         $ArmRecv = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockIsArm64
         $ArmSend = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockIsArm64
 
-        if ($ArmRecv -and $ArmSend -and $toolname -eq 'secnetperf') {
+        if ($ArmRecv -and $ArmSend -and ($toolname -eq 'secnetperf' -or $toolname -eq 'ncps')) {
             $toolpath = ".\{0}\arm64" -f $Toolname
         }
 
