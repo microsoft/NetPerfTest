@@ -172,15 +172,15 @@ $CheckProcessExitScriptBlock = {
     return (Get-Process -Name $toolname -ErrorAction SilentlyContinue)
 } # $CheckProcessExitScriptBlock()
 
-# Set up a directory on the remote machines for results gathering.
-$ScriptBlockGetArchitecture = {
+# check if machine is arm64
+$ScriptBlockIsArm64 = {
     param ()
     $Output = systeminfo | findstr /C:"System Type"
     if ($Output -Contains 'ARM64') {
         return $true
     }
     return $false
-} # $ScriptBlockGetArchitecture()
+} # $ScriptBlockIsArm64()
 
 
 $CreateZipScriptBlock = {
@@ -836,13 +836,13 @@ param(
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\l4ping")
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\l4ping")
 
-        $ArmRecv = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockGetArchitecture
-        $ArmSend = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockGetArchitecture
+        $ArmRecv = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockIsArm64
+        $ArmSend = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockIsArm64
 
-        if ($ArmRecv -and $ArmSend -and $toolname -eq 'secnetperf') {
+        if ($ArmRecv -and $ArmSend -and ($toolname -eq 'secnetperf' -or $toolname -eq 'ncps')) {
             $toolpath = ".\{0}\arm64" -f $Toolname
         }
-        
+
         #copy the tool exe to the remote machines
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
@@ -1182,8 +1182,8 @@ param(
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\quic") 
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\secnetperf") 
         
-        $ArmRecv = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockGetArchitecture
-        $ArmSend = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockGetArchitecture
+        $ArmRecv = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockIsArm64
+        $ArmSend = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockIsArm64
 
         if ($ArmRecv -and $ArmSend -and $toolname -eq 'secnetperf') {
             $toolpath = ".\{0}\arm64" -f $Toolname
