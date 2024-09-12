@@ -172,6 +172,16 @@ $CheckProcessExitScriptBlock = {
     return (Get-Process -Name $toolname -ErrorAction SilentlyContinue)
 } # $CheckProcessExitScriptBlock()
 
+# Set up a directory on the remote machines for results gathering.
+$ScriptBlockGetArchitecture = {
+    param ()
+    $Output = systeminfo | findstr /C:"System Type"
+    if ($Output -Contains 'ARM64') {
+        return $true
+    }
+    return $false
+} # $ScriptBlockGetArchitecture()
+
 
 $CreateZipScriptBlock = {
     Param(
@@ -341,6 +351,11 @@ Function ProcessCommands{
     if (Test-Path -Path "$commandsDir\secnetperf") {
         LogWrite "Processing secnetperf commands" $true
         ProcessToolCommands -Toolname "secnetperf" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
+    }
+
+    if (Test-Path -Path "$commandsDir\l4ping") {
+        LogWrite "Processing l4ping commands" $true
+        ProcessToolCommands -Toolname "l4ping" -RecvComputerName $recvComputerName -RecvComputerCreds $recvIPCreds -SendComputerName $sendComputerName -SendComputerCreds $sendIPCreds -CommandsDir $workingDir -Bcleanup $Bcleanup -BZip $ZipResults -TimeoutValueBetweenCommandPairs $TimeoutValueInSeconds -PollTimeInSeconds $PollTimeInSeconds -TransmitEventsLocally $TransmitEventsLocally -TransmitEventsRemotely $TransmitEventsRemotely -TransmitComputerName $TransmitIP -TransmitComputerCreds $transmitIPCreds
     }
 
     LogWrite "ProcessCommands Done!" $true
@@ -818,7 +833,16 @@ param(
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\tcp")  
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\quic") 
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\secnetperf")  
+        $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\l4ping")
+        $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\l4ping")
 
+        $ArmRecv = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockGetArchitecture
+        $ArmSend = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockGetArchitecture
+
+        if ($ArmRecv -and $ArmSend -and $toolname -eq 'secnetperf') {
+            $toolpath = ".\{0}\arm64" -f $Toolname
+        }
+        
         #copy the tool exe to the remote machines
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Sender" -ToSession $sendPSSession
@@ -1157,6 +1181,13 @@ param(
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\tcp")  
         $null = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Sender\secnetperf\latency\quic") 
         $null = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockCreateDirForResults -ArgumentList ($CommandsDir+"\Receiver\secnetperf") 
+        
+        $ArmRecv = Invoke-Command -Session $recvPSSession -ScriptBlock $ScriptBlockGetArchitecture
+        $ArmSend = Invoke-Command -Session $sendPSSession -ScriptBlock $ScriptBlockGetArchitecture
+
+        if ($ArmRecv -and $ArmSend -and $toolname -eq 'secnetperf') {
+            $toolpath = ".\{0}\arm64" -f $Toolname
+        }
 
         #copy the tool exe to the remote machines
         Copy-Item -Path "$toolpath\$toolexe" -Destination "$CommandsDir\Receiver" -ToSession $recvPSSession
