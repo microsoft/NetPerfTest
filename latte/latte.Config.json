@@ -60,5 +60,18 @@
         "Default"        : null,
         "Optimized"      : "-group 0 -rio -riopoll 100000000000",
         "Options"        : ""
+    },
+
+    "LatteFrag": 
+    {
+        "Iterations"     : 20,
+        "Protocol"       : ["tcp", "udp"],
+        "StartPort"      : 50000,
+        "Time"           : 0,
+        "PingIterations" : 10000,
+        "SendMethod"     : [ "b" ],
+        "Default"        : null,
+        "Optimized"      : "-group 0 -rio -riopoll 100000000000",
+        "Options"        : ""
     }
 }

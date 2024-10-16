@@ -97,5 +97,20 @@
         "Warmup"   : 2,
         "Cooldown" : 2,
         "Runtime"  : 90
+    },
+
+    "NtttcpFrag": {
+        "Iterations" : 5,
+        "StartPort"  : 50000,
+        "tcp" : null,
+        "udp" : {
+            "BufferLen"     : [512, 1024, 1372],
+            "Connections"   : [64],
+            "OutstandingIo" : null,
+            "Options"       : "-sp"
+        },
+        "Warmup"   : 2,
+        "Cooldown" : 2,
+        "Runtime"  : 90
     }
 }
