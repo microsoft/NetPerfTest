@@ -102,12 +102,7 @@
     "NtttcpFrag": {
         "Iterations" : 5,
         "StartPort"  : 50000,
-        "tcp" : {
-            "BufferLen"     : [65536],
-            "Connections"   : [64],
-            "OutstandingIo" :[16],
-            "Options": "-sp"
-        },
+        "tcp" : null,
         "udp" : {
             "BufferLen"     : [512, 1024, 1372],
             "Connections"   : [64],
