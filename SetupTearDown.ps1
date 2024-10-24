@@ -119,7 +119,7 @@ param(
     }
 
     Write-Host "`nAdd the AuthorizedKey as a trusted admin key"
-    Add-Content -Force -Path "$env:ProgramData\ssh\administrators_authorized_keys" -Value "$authorizedKey"
+    Add-Content -Force -Path "$env:ProgramData\ssh\administrators_authorized_keys" -Value "`n$authorizedKey"
     icacls.exe "$env:ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F"
 
     if (-NOT (Test-Path "$env:ProgramFiles\PowerShell\7\"))
