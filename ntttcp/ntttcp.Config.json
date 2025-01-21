@@ -80,17 +80,17 @@
     },
 
     "NtttcpContainer": {
-        "Iterations" : 5,
+        "Iterations" : 3,
         "StartPort"  : 50000,
         "tcp" : {
             "BufferLen"     : [65536],
-            "Connections"   : [64, 128],
+            "Connections"   : [64],
             "OutstandingIo" :[16],
             "Options": "-ns"
         },
         "udp" : {
             "BufferLen"     : [1372],
-            "Connections"   : [64, 128],
+            "Connections"   : [64],
             "OutstandingIo" : null,
             "Options"       : "-ns"
         },
@@ -98,13 +98,26 @@
         "Cooldown" : 2,
         "Runtime"  : 90
     },
-
-    "NtttcpFrag": {
+    "NtttcpTcp": {
+        "Iterations" : 5,
+        "StartPort"  : 50000,
+        "tcp" : {
+            "BufferLen"     : [65536],
+            "Connections"   : [64],
+            "OutstandingIo" :[16],
+            "Options": "-sp"
+        },
+        "udp" : null,
+        "Warmup"   : 2,
+        "Cooldown" : 2,
+        "Runtime"  : 90
+    },
+    "NtttcpUdp": {
         "Iterations" : 5,
         "StartPort"  : 50000,
         "tcp" : null,
         "udp" : {
-            "BufferLen"     : [512, 1024, 1372],
+            "BufferLen"     : [1372],
             "Connections"   : [64],
             "OutstandingIo" : null,
             "Options"       : "-sp"
