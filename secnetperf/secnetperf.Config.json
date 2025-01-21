@@ -46,7 +46,7 @@
         }
     },
     "SecnetperfContainer": {
-        "Iterations": 5,
+        "Iterations": 3,
         "StartPort": 50000,
         "TestType" : {
             "Latency": {
