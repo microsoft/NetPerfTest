@@ -84,13 +84,13 @@
         "StartPort"  : 50000,
         "tcp" : {
             "BufferLen"     : [65536],
-            "Connections"   : [64],
+            "Connections"   : [64, 128],
             "OutstandingIo" :[16],
             "Options": "-ns"
         },
         "udp" : {
             "BufferLen"     : [1372],
-            "Connections"   : [64],
+            "Connections"   : [64, 128],
             "OutstandingIo" : null,
             "Options"       : "-ns"
         },
