@@ -22,7 +22,7 @@
 
     "L4pingContainer":
     {
-        "Iterations"        : 5,
+        "Iterations"        : 3,
         "StartPort"         : 50000,
         "ClientSendSize"    : 4,
         "ClientReceiveSize" : 4,
