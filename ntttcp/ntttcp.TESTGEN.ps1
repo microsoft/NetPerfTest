@@ -26,6 +26,19 @@ function input_display {
 #===============================================
 # Internal Functions
 #===============================================
+
+function is_iPv6 {
+    param(
+      [string]$IPAddress
+    )
+    $ipObj = $null
+    [IPAddress]::TryParse($IPAddress, [ref]$ipObj)
+    if ($ipObj -ne $null -and $ipObj.AddressFamily -eq "InterNetworkV6") {
+      return $true
+    }
+    return $false
+}
+  
 function test_recv {
     [CmdletBinding()]
     Param(
@@ -38,7 +51,11 @@ function test_recv {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ntttcp.exe -r -m $Conn,*,$g_DestIp $proto $Options -v -wu $($g_Config.Warmup) -cd $($g_Config.Cooldown) -p $Port -t $($g_Config.Runtime) -xml $out.xml"
+    [string] $ipv6 = ''
+    if (is_iPv6 -IPAddress $g_DestIp) {
+        $ipv6 = ' -6'
+    }
+    [string] $cmd = "ntttcp.exe -r -m $Conn,*,$g_DestIp $proto $Options$ipv6 -v -wu $($g_Config.Warmup) -cd $($g_Config.Cooldown) -p $Port -t $($g_Config.Runtime) -xml $out.xml"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
@@ -58,7 +75,11 @@ function test_send {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ntttcp.exe -s -m $Conn,*,$g_DestIp $proto $Options -v -wu $($g_Config.Warmup) -cd $($g_Config.Cooldown) -p $Port -t $($g_Config.Runtime) -xml $out.xml -nic $g_SrcIp"
+    [string] $ipv6 = ''
+    if (is_iPv6 -IPAddress $g_DestIp) {
+        $ipv6 = ' -6'
+    }
+    [string] $cmd = "ntttcp.exe -s -m $Conn,*,$g_DestIp $proto $Options$ipv6 -v -wu $($g_Config.Warmup) -cd $($g_Config.Cooldown) -p $Port -t $($g_Config.Runtime) -xml $out.xml -nic $g_SrcIp"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend    

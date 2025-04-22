@@ -66,12 +66,24 @@
             "Handshakes": {
                 "tcp": {
                     "Runtime" : 30,
-                    "Connections": [16, 32, 64, 128],
+                    "Connections": [64, 128],
                     "Options" : ""
                 },
                 "quic": {
                     "Runtime" : 30,
-                    "Connections": [16, 32, 64, 128],
+                    "Connections": [64, 128],
+                    "Options" : ""
+                }
+            },
+            "Requests": {
+                "tcp": {
+                    "Runtime" : 30,
+                    "Connections": [64, 128],
+                    "Options" : ""
+                },
+                "quic": {
+                    "Runtime" : 30,
+                    "Connections": [64, 128],
                     "Options" : ""
                 }
             },
@@ -79,13 +91,13 @@
                 "tcp": {
                     "Runtime" : 30,
                     "BufferLen" : [65536],
-                    "Connections": [16, 32, 64, 128],
+                    "Connections": [64, 128],
                     "Options" : ""
                 },
                 "quic": {
                     "Runtime" : 30,
                     "BufferLen": [1372],
-                    "Connections": [16, 32, 64, 128],
+                    "Connections": [64, 128],
                     "Options" : ""
                 }
             }
