@@ -6,7 +6,9 @@ Param(
     [parameter(Mandatory=$true)]  [ValidateScript({$_ -match [IPAddress]$_ })]         [string] $DestIp,
     [parameter(Mandatory=$true)]  [ValidateScript({$_ -match [IPAddress]$_ })]         [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir,
-    [parameter(Mandatory=$false)] [switch] $SamePort = $false
+    [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+    [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+    [parameter(Mandatory=$false)] [string] $Vip
 )
 $scriptName = $MyInvocation.MyCommand.Name 
 
@@ -62,7 +64,11 @@ function test_send {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath $Fname)
-    [string] $cmd = "l4ping.exe -c $g_DestIp`:$Port -S $ClientSendSize -R $ClientReceiveSize -m $PingIterations -p `"$Percentiles`" -o $out"
+    [string] $SendIp = $g_DestIp
+    if ($LoadBalancer.IsPresent -and (-Not [String]::IsNullOrWhiteSpace($Vip))) {
+        $SendIp = $Vip
+    }
+    [string] $cmd = "l4ping.exe -c $SendIp`:$Port -S $ClientSendSize -R $ClientReceiveSize -m $PingIterations -p `"$Percentiles`" -o $out"
 
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
@@ -152,7 +158,9 @@ function test_main {
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-        [parameter(Mandatory=$false)] [switch] $SamePort = $false
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+        [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+        [parameter(Mandatory=$false)] [string] $Vip
     )
     try {
         # input_display

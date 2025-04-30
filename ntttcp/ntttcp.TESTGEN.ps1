@@ -6,7 +6,9 @@ Param(
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-    [parameter(Mandatory=$false)] [switch] $SamePort = $false
+    [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+    [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+    [parameter(Mandatory=$false)] [string] $Vip
 )
 $scriptName = $MyInvocation.MyCommand.Name 
 
@@ -79,7 +81,11 @@ function test_send {
     if (is_iPv6 -IPAddress $g_DestIp) {
         $ipv6 = ' -6'
     }
-    [string] $cmd = "ntttcp.exe -s -m $Conn,*,$g_DestIp $proto $Options$ipv6 -v -wu $($g_Config.Warmup) -cd $($g_Config.Cooldown) -p $Port -t $($g_Config.Runtime) -xml $out.xml -nic $g_SrcIp"
+    [string] $SendIp = $g_DestIp
+    if ($LoadBalancer.IsPresent -and (-Not [String]::IsNullOrWhiteSpace($Vip))) {
+        $SendIp = $Vip
+    }
+    [string] $cmd = "ntttcp.exe -s -m $Conn,*,$SendIp $proto $Options$ipv6 -v -wu $($g_Config.Warmup) -cd $($g_Config.Cooldown) -p $Port -t $($g_Config.Runtime) -xml $out.xml -nic $g_SrcIp"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend    
@@ -204,7 +210,9 @@ function test_main {
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-        [parameter(Mandatory=$false)] [switch] $SamePort = $false
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+        [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+        [parameter(Mandatory=$false)] [string] $Vip
     )
     try {
         # input_display

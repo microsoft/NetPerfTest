@@ -6,7 +6,9 @@ Param(
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-    [parameter(Mandatory=$false)] [switch] $SamePort = $false
+    [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+    [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+    [parameter(Mandatory=$false)] [string] $Vip
 )
 $scriptName = $MyInvocation.MyCommand.Name 
 
@@ -63,8 +65,11 @@ function test_send_latency {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-
-    [string] $cmd = "secnetperf.exe -target:$DestIp -port:$Port -tcp:$Type -up:$Requests -down:$Size -runtime:$($Secs)s -scenario:latency -rstream:1 -platency:1 $Options > $out.txt"
+    [string] $SendIp = $DestIp
+    if ($LoadBalancer.IsPresent -and (-Not [String]::IsNullOrWhiteSpace($Vip))) {
+        $SendIp = $Vip
+    }
+    [string] $cmd = "secnetperf.exe -target:$SendIp -port:$Port -tcp:$Type -up:$Requests -down:$Size -runtime:$($Secs)s -scenario:latency -rstream:1 -platency:1 $Options > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Output   $cmd 
@@ -83,8 +88,11 @@ function test_send_handshakes {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-
-    [string] $cmd = "secnetperf.exe -target:$DestIp -port:$Port -tcp:$Type -conns:$Conns -runtime:$($Secs)s -rconn:1 -exec:maxtput -scenario:hps -prate:1 $Options > $out.txt"
+    [string] $SendIp = $DestIp
+    if ($LoadBalancer.IsPresent -and (-Not [String]::IsNullOrWhiteSpace($Vip))) {
+        $SendIp = $Vip
+    }
+    [string] $cmd = "secnetperf.exe -target:$SendIp -port:$Port -tcp:$Type -conns:$Conns -runtime:$($Secs)s -rconn:1 -exec:maxtput -scenario:hps -prate:1 $Options > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Output   $cmd 
@@ -103,8 +111,11 @@ function test_send_requests {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-
-    [string] $cmd = "secnetperf.exe -target:$DestIp -port:$Port -tcp:$Type -conns:$Conns -runtime:$($Secs)s -rconn:1 -exec:maxtput -scenario:rps -prate:1 $Options > $out.txt"
+    [string] $SendIp = $DestIp
+    if ($LoadBalancer.IsPresent -and (-Not [String]::IsNullOrWhiteSpace($Vip))) {
+        $SendIp = $Vip
+    }
+    [string] $cmd = "secnetperf.exe -target:$SendIp -port:$Port -tcp:$Type -conns:$Conns -runtime:$($Secs)s -rconn:1 -exec:maxtput -scenario:rps -prate:1 $Options > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Output   $cmd 
@@ -124,8 +135,11 @@ function test_send_throughput {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-
-    [string] $cmd = "secnetperf.exe -target:$DestIp -port:$Port -tcp:$Type -iosize:$Len -conns:$Conns -up:$($Secs)s -down:$($Secs)s -exec:maxtput -ptput:1 $Options > $out.txt"
+    [string] $SendIp = $DestIp
+    if ($LoadBalancer.IsPresent -and (-Not [String]::IsNullOrWhiteSpace($Vip))) {
+        $SendIp = $Vip
+    }
+    [string] $cmd = "secnetperf.exe -target:$SendIp -port:$Port -tcp:$Type -iosize:$Len -conns:$Conns -up:$($Secs)s -down:$($Secs)s -exec:maxtput -ptput:1 $Options > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Output   $cmd 
@@ -392,7 +406,9 @@ function test_main {
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-        [parameter(Mandatory=$false)] [switch] $SamePort = $false
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+        [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+        [parameter(Mandatory=$false)] [string] $Vip
     )
     try {
         # input_display
