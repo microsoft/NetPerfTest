@@ -6,7 +6,9 @@ Param(
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-    [parameter(Mandatory=$false)] [switch] $SamePort = $false
+    [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+    [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+    [parameter(Mandatory=$false)] [string] $Vip
 )
 $scriptName = $MyInvocation.MyCommand.Name 
 
@@ -58,7 +60,11 @@ function test_send {
     )
 
     [string] $out = (Join-Path -Path $OutDir -ChildPath "$Fname")
-    [string] $cmd = "ctstraffic.exe -bind:$g_SrcIp -target:$g_DestIp $Proto -Port:$Port -connections:$Conn -timeLimit:$(1000 * [Int]$g_Config.Runtime) -verify:connection -transfer:0xffffffffffffffff -msgwaitall:on -io:rioiocp -statusfilename:$out.csv $Options"
+    [string] $SendIp = $g_DestIp
+    if ($LoadBalancer.IsPresent -and (-Not [String]::IsNullOrWhiteSpace($Vip))) {
+        $SendIp = $Vip
+    }
+    [string] $cmd = "ctstraffic.exe -bind:$g_SrcIp -target:$SendIp $Proto -Port:$Port -connections:$Conn -timeLimit:$(1000 * [Int]$g_Config.Runtime) -verify:connection -transfer:0xffffffffffffffff -msgwaitall:on -io:rioiocp -statusfilename:$out.csv $Options"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend    
@@ -168,7 +174,9 @@ function test_main {
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-        [parameter(Mandatory=$false)] [switch] $SamePort = $false
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+        [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+        [parameter(Mandatory=$false)] [string] $Vip
     )
     try {
         # input_display

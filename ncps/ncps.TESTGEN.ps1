@@ -3,7 +3,9 @@ Param(
     [Parameter(Mandatory=$true)]  [String] $DestIp,
     [Parameter(Mandatory=$true)]  [String] $SrcIp,
     [Parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-    [parameter(Mandatory=$false)] [switch] $SamePort = $false
+    [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+    [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+    [parameter(Mandatory=$false)] [string] $Vip
 )
 
 $scriptName = $MyInvocation.MyCommand.Name
@@ -49,8 +51,11 @@ function test_client {
     )
 
     [String] $out = Join-Path $OutDir "send.$Filename"
-
-    $thread_params = "-r $Threads $g_SrcIp,$($g_Config.Port),$g_DestIp,$($g_Config.Port),$ConnectionsPerThread,$ConnectionsPerThread,$ConnectionDurationMS,$DataTransferMode"
+    [string] $SendIp = $DestIp
+    if ($LoadBalancer.IsPresent -and (-Not [String]::IsNullOrWhiteSpace($Vip))) {
+        $SendIp = $Vip
+    }
+    $thread_params = "-r $Threads $g_SrcIp,$($g_Config.Port),$g_SendIp,$($g_Config.Port),$ConnectionsPerThread,$ConnectionsPerThread,$ConnectionDurationMS,$DataTransferMode"
     [String] $cmd = "ncps.exe -c $thread_params -wt $($g_Config.Warmup) -t $($g_Config.Runtime) -o $out.txt $($g_Config.Options)"
     Write-Output $cmd | Out-File -Encoding ascii -Append "$out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
@@ -158,7 +163,9 @@ function test_main {
         [Parameter(Mandatory=$true)]  [String] $DestIp,
         [Parameter(Mandatory=$true)]  [String] $SrcIp,
         [Parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-        [parameter(Mandatory=$false)] [switch] $SamePort = $false 
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+        [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+        [parameter(Mandatory=$false)] [string] $Vip
     )
 
     try {

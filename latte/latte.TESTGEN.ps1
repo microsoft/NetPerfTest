@@ -6,7 +6,9 @@ Param(
     [parameter(Mandatory=$true)]  [string] $DestIp,
     [parameter(Mandatory=$true)]  [string] $SrcIp,
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-    [parameter(Mandatory=$false)] [switch] $SamePort = $false
+    [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+    [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+    [parameter(Mandatory=$false)] [string] $Vip
 )
 $scriptName = $MyInvocation.MyCommand.Name 
 
@@ -37,7 +39,16 @@ function banner {
 } # banner()
 
 function test_recv {
-    [string] $cmd = "latte.exe -ga"
+    [CmdletBinding()]
+    Param(
+        [parameter(Mandatory=$false)]  [string] $Iter,
+        [parameter(Mandatory=$false)]  [int]    $Secs,
+        [parameter(Mandatory=$true)]   [int]    $Port,
+        [parameter(Mandatory=$true)]   [String] $Type,
+        [parameter(Mandatory=$true)]   [String] $Snd,
+        [parameter(Mandatory=$false)]  [String] $Options
+    )
+    [string] $cmd = "latte.exe -a $g_DestIp" + ":"  + "$Port $Iter $Type -snd $snd $Options"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logRecv
     Write-Output   $cmd 
@@ -64,11 +75,16 @@ function test_send {
     [string] $out        = (Join-Path -Path $OutDir -ChildPath "$Fname")
     [string] $dumpOption = "-dump $out.data.txt"
 
+    [string] $SendIp = $g_DestIp
+    if ($LoadBalancer.IsPresent -and (-Not [String]::IsNullOrWhiteSpace($Vip))) {
+        $SendIp = $Vip
+    }
+
     if ($NoDumpParam) {
         $dumpOption = ""
     }
 
-    [string] $cmd = "latte.exe -sa -c -a $g_DestIp" + ":"  + "$Port $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -so $dumpOption > $out.txt"
+    [string] $cmd = "latte.exe -c -a $SendIp" + ":"  + "$Port $Iter -hist -hc $rangemax -hl $rangeus $Type -snd $snd $Options -so $dumpOption > $out.txt"
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_log
     Write-Output $cmd | Out-File -Encoding ascii -Append $g_logSend
     Write-Output   $cmd 
@@ -95,12 +111,12 @@ function test_protocol {
             # output optimized commands
             if ($null -ne  $g_Config.Optimized) {
                 test_send -Iter $Iter -Port $portstart -Type "-$Protocol" -Snd $snd -Options $g_Config.Optimized -OutDir $OutDirOpt -Fname "$Fname.$snd.OPT.iter$i" -NoDumpParam $NoDumpParam
-                test_recv
+                test_recv -Iter $Iter -Port $portstart -Type "-$Protocol" -Snd $snd -Options $g_Config.Optimized
             } 
             # output default commands
             if ($null -ne  $g_Config.Default) {
                 test_send -Iter $Iter -Port $portstart -Type "-$Protocol" -Snd $snd -Options $g_Config.Default -OutDir $OutDirDefault -Fname "$Fname.$snd.iter$i" -NoDumpParam $NoDumpParam
-                test_recv
+                test_recv -Iter $Iter -Port $portstart -Type "-$Protocol" -Snd $snd -Options $g_Config.Default
             }
         }
     }
@@ -185,7 +201,9 @@ function test_main {
         [parameter(Mandatory=$true)]  [string] $DestIp,
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
-        [parameter(Mandatory=$false)] [switch] $SamePort = $false
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+        [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+        [parameter(Mandatory=$false)] [string] $Vip
     )
     try {
         # input_display

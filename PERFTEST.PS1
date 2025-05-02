@@ -7,7 +7,9 @@ Param(
     [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "",
     [parameter(Mandatory=$false)] [string] $Config = "Default",
     [parameter(Mandatory=$false)]  [Array] $ToolList = @("ntttcp", "latte", "l4ping", "cps", "ctstraffic", "ncps", "secnetperf"),
-    [parameter(Mandatory=$false)] [switch] $SamePort = $false
+    [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+    [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+    [parameter(Mandatory=$false)]  [string] $Vip
 )
 
 $scriptName = $MyInvocation.MyCommand.Name 
@@ -110,7 +112,9 @@ function test_main {
         [parameter(Mandatory=$true)]  [string] $SrcIp,
         [parameter(Mandatory=$true)]  [ValidateScript({Test-Path $_ -PathType Container})] [String] $OutDir = "" ,
         [parameter(Mandatory=$false)] [Array] $ToolList,
-        [parameter(Mandatory=$false)] [switch] $SamePort = $false
+        [parameter(Mandatory=$false)] [switch] $SamePort = $false,
+        [parameter(Mandatory=$false)] [switch] $LoadBalancer = $false,
+        [parameter(Mandatory=$false)]  [string] $Vip
     )
     
     if (-not $silent) {input_display}
@@ -127,25 +131,25 @@ function test_main {
     $ToolList = normalize_toollist -ToolList $ToolList
     
     if ("ctstraffic" -in $ToolList) {
-        & "$PSScriptRoot\ctsTraffic\ctsTraffic.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
+        & "$PSScriptRoot\ctsTraffic\ctsTraffic.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent -LoadBalancer:$LoadBalancer.IsPresent -Vip $Vip
     }
     if ("cps" -in $ToolList) {
-        & "$PSScriptRoot\cps\cps.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
+        & "$PSScriptRoot\cps\cps.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent -LoadBalancer:$LoadBalancer.IsPresent -Vip $Vip
     }
     if ("latte" -in $ToolList) {
-        & "$PSScriptRoot\latte\latte.TESTGEN.ps1"   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
+        & "$PSScriptRoot\latte\latte.TESTGEN.ps1"   -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent -LoadBalancer:$LoadBalancer.IsPresent -Vip $Vip
     }
     if ("l4ping" -in $ToolList) {
-        & "$PSScriptRoot\l4ping\l4ping.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
+        & "$PSScriptRoot\l4ping\l4ping.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent -LoadBalancer:$LoadBalancer.IsPresent -Vip $Vip
     }
     if ("ntttcp" -in $ToolList) {
-        & "$PSScriptRoot\ntttcp\ntttcp.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
+        & "$PSScriptRoot\ntttcp\ntttcp.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent -LoadBalancer:$LoadBalancer.IsPresent -Vip $Vip
     } 
     if ("ncps" -in $ToolList) {
-        & "$PSScriptRoot\ncps\ncps.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
+        & "$PSScriptRoot\ncps\ncps.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent -LoadBalancer:$LoadBalancer.IsPresent -Vip $Vip
     }   
     if ("secnetperf" -in $ToolList) {
-        & "$PSScriptRoot\secnetperf\secnetperf.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent
+        & "$PSScriptRoot\secnetperf\secnetperf.TESTGEN.ps1" -DestIp $g_DestIp -SrcIp $g_SrcIp -OutDir $workDir -Config $g_config -SamePort:$SamePort.IsPresent -LoadBalancer:$LoadBalancer.IsPresent -Vip $Vip
     }   
     
     
