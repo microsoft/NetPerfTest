@@ -34,11 +34,12 @@ function is_iPv6 {
       [string]$IPAddress
     )
     $ipObj = $null
-    [IPAddress]::TryParse($IPAddress, [ref]$ipObj)
-    if ($ipObj -ne $null -and $ipObj.AddressFamily -eq "InterNetworkV6") {
+    [IPAddress]::TryParse($IPAddress, [ref]$ipObj) | Out-Null
+    if (($ipObj -ne $null) -and ($ipObj.AddressFamily -eq "InterNetworkV6")) {
       return $true
+    } else {
+        return $false
     }
-    return $false
 }
   
 function test_recv {
