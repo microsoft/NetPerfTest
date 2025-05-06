@@ -153,7 +153,7 @@ function test_main {
     }   
     
     
-} test_main -Config $Config -DestIp $DestIp -SrcIp $SrcIp -OutDir $OutDir -ToolList $ToolList -LoadBalancer:$LoadBalancer.IsPresent -Vip $Vip
+} test_main -Config $Config -DestIp $DestIp -SrcIp $SrcIp -OutDir $OutDir -ToolList $ToolList -LoadBalancer:$LoadBalancer.IsPresent -Vip $Vip -SamePort:$SamePort.IsPresent
 
 
 
