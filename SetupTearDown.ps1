@@ -118,15 +118,10 @@ param(
         Write-Host "`nSSHD default config files already exist"
     }
 
-    if (-NOT (Test-Path "$env:ProgramData\ssh\administrators_authorized_keys"))
-    {
+    if ($null -eq (Select-String -Path "$env:ProgramData\ssh\administrators_authorized_keys" -Pattern $authorizedKey)) {
         Write-Host "`nAdd the AuthorizedKey as a trusted admin key"
-        Add-Content -Force -Path "$env:ProgramData\ssh\administrators_authorized_keys" -Value "$authorizedKey"
+        Add-Content -Force -Path "$env:ProgramData\ssh\administrators_authorized_keys" -Value "`n$authorizedKey"
         icacls.exe "$env:ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F"
-    }
-    else
-    {
-        Write-Host "`nTrusted admin keys already exist"
     }
 
     if (-NOT (Test-Path "$env:ProgramFiles\PowerShell\7\"))
