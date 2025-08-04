@@ -122,11 +122,13 @@ param(
     {
         Write-Host "`nAdd the AuthorizedKey as a trusted admin key"
         Add-Content -Force -Path "$env:ProgramData\ssh\administrators_authorized_keys" -Value "$authorizedKey"
+        takeown.exe /f "$env:ProgramData\ssh\administrators_authorized_keys" /a
         icacls.exe "$env:ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F"
     }
     else
     {
         Write-Host "`nTrusted admin keys already exist"
+        takeown.exe /f "$env:ProgramData\ssh\administrators_authorized_keys" /a
     }
 
     if (-NOT (Test-Path "$env:ProgramFiles\PowerShell\7\"))
@@ -150,7 +152,6 @@ param(
         Write-Host "`nProgram Files symlink already exists"
     }
 
-    $SshdConfigContent = Get-Content "$env:ProgramData\ssh\sshd_config"
     if ($SshdConfigContent -NotContains "Subsystem powershell C:\Progra~1\powershell\7\pwsh.exe -sshs -nologo")
     {
         Write-Host "`nUpdate the PowerShell subsystem config"
@@ -161,7 +162,11 @@ param(
     {
         Write-Host "`nPowerShell subsystem config already exists"
     }
-
+    $SshdConfigContent = Get-Content "$env:ProgramData\ssh\sshd_config"
+    $SshdConfigContent[22] = "SyslogFacility LOCAL0"
+    $SshdConfigContent[23] = "LogLevel DEBUG3"
+    $SshdConfigContent[33] = "PubkeyAuthentication yes" # enable pubkey auth by default
+    $SshdConfigContent | Set-Content "$env:ProgramData\ssh\sshd_config"
     Write-Host "`nDone"
 
 } # SetupSshRemotingServer()
@@ -204,4 +209,5 @@ function main {
 }
 
 #Entry point
+
 main @PSBoundParameters
