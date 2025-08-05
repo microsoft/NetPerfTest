@@ -155,6 +155,7 @@ param(
     if ($SshdConfigContent -NotContains "Subsystem powershell C:\Progra~1\powershell\7\pwsh.exe -sshs -nologo")
     {
         Write-Host "`nUpdate the PowerShell subsystem config"
+        $SshdConfigContent = Get-Content "$env:ProgramData\ssh\sshd_config"
         $SshdConfigContent[78] = "Subsystem powershell C:\Progra~1\powershell\7\pwsh.exe -sshs -nologo"
         $SshdConfigContent | Set-Content "$env:ProgramData\ssh\sshd_config"
     }
@@ -162,6 +163,7 @@ param(
     {
         Write-Host "`nPowerShell subsystem config already exists"
     }
+    
     $SshdConfigContent = Get-Content "$env:ProgramData\ssh\sshd_config"
     $SshdConfigContent[22] = "SyslogFacility LOCAL0"
     $SshdConfigContent[23] = "LogLevel DEBUG3"
@@ -211,3 +213,4 @@ function main {
 #Entry point
 
 main @PSBoundParameters
+
